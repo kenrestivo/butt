@@ -21,3 +21,5 @@ out/
 *.rar
 *.tar
 *.gz
+*.log
+*.mk
