@@ -8,3 +8,5 @@ TODO for THE BUTT
 ** TODO compiling/testing/redistributing on windoze
 ** TODO compile/testing/distribute on mac!
 ** TODO post binaries for all of the above.
+** TODO clean up the fluid configure stuff
+*** check to make sure fluid is present and works on all platforms
