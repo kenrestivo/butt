@@ -93,7 +93,7 @@ int ic_connect()
 
     sock_send(&stream_socket, send_buf, strlen(send_buf), SEND_TIMEOUT);
 
-    snprintf(auth, sizeof(auth), "%s:%s", user, cfg.srv[cfg.selected_srv]->pwd);
+    snprintf(auth, sizeof(auth), "%s:%s", cfg.srv[cfg.selected_srv]->user, cfg.srv[cfg.selected_srv]->pwd);
     snprintf(b64_auth, sizeof(b64_auth), util_base64_enc(auth));
     snprintf(send_buf, sizeof(send_buf), "Authorization: Basic %s\r\n", b64_auth);
     sock_send(&stream_socket, send_buf, strlen(send_buf), SEND_TIMEOUT);
@@ -205,7 +205,6 @@ int ic_update_song()
     int web_socket;
     char send_buf[1024];
     char auth[150];
-    char user[] = "source";
     char *song_buf;
     char *mount;
 
@@ -247,7 +246,7 @@ int ic_update_song()
     else
         strcpy(mount, cfg.srv[cfg.selected_srv]->mount);
 
-    snprintf(auth, sizeof(auth), "%s:%s", user, cfg.srv[cfg.selected_srv]->pwd);
+    snprintf(auth, sizeof(auth), "%s:%s", cfg.srv[cfg.selected_srv]->user, cfg.srv[cfg.selected_srv]->pwd);
 
     snprintf(send_buf, sizeof(send_buf), "GET /admin/metadata?mode=updinfo&mount=%s&song=%s "
                                          "HTTP/1.0\r\nUser-Agent: %s\r\n"

@@ -30,7 +30,7 @@ SRC =	butt.cpp port_audio.cpp \
 	cfg.cpp timer.cpp strfuncs.cpp \
 	sockfuncs.cpp util.cpp wav_header.cpp \
 	ringbuffer.cpp
-	
+
 ######################
 
 ######################
@@ -52,13 +52,14 @@ TARGET  = butt
 
 #######################
 
-$(TARGET) : $(OBJECTS)
+
+$(TARGET) :  FLTK/flgui.cpp $(OBJECTS) 
 	$(CXX) -o $@ $(OBJECTS) $(LDFLAGS) $(LIBS)
 
-butt.o : ../config.mk
+butt.o : ../config.mk 
 
 clean:
-	@rm -f $(OBJECTS) *~ FLTK/*~ QT/*~
+	@rm -f $(OBJECTS) *~ FLTK/*~ QT/*~ FLTK/flgui.cpp FLTK/flgui.h
 
 distclean:
 	rm -f $(TARGET) $(OBJECTS) *~ FLTK/*~ QT/*~ .*.d
@@ -67,6 +68,9 @@ vimclean:
 	rm -f .*sw*      #cleanup vim swapfiles
 	rm -f FLTK/.*sw*
 
+#TODO: use $FLUID here and obtain its path/name via configure instead
+FLTK/flgui.cpp: FLTK/flgui.fl
+	cd FLTK && fluid -c flgui.fl	
 
 deps: $(DEPS)
 

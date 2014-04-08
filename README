@@ -1,3 +1,10 @@
+# BUTT
+
+## Fork notes
+
+This is a fork by ken restivo (ken at restivo dot org) of a project that appears to have been abandoned.
+
+Original README follows.
 
 About:
 ------
@@ -6,7 +13,6 @@ It supports ShoutCast and IceCast.
 butt runs on Linux, MacOS and Windows.
 
 If you find any bugs or if butt doesn't behave like you expect, please contact me: butt at danielnoethen dot de
-
 
 Intro:
 ------

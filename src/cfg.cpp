@@ -141,11 +141,13 @@ int cfg_write_file()
         fprintf(cfg_fd, 
                 "[%s]\n"
                 "address = %s\n"
+                "user = %s\n"
                 "port = %u\n"
                 "password = %s\n"
                 "type = %d\n",
                 cfg.srv[i]->name,
                 cfg.srv[i]->addr,
+                cfg.srv[i]->user,
                 cfg.srv[i]->port,
                 cfg.srv[i]->pwd,
                 cfg.srv[i]->type
@@ -331,6 +333,7 @@ int cfg_set_values()
             snprintf(cfg.srv[i]->name, MAX_SECTION_LENGTH, srv_ent);
 
             cfg.srv[i]->addr  = cfg_get_str(srv_ent, "address");
+            cfg.srv[i]->user  = cfg_get_str(srv_ent, "user");
             cfg.srv[i]->port  = cfg_get_int(srv_ent, "port");
             cfg.srv[i]->pwd   = cfg_get_str(srv_ent, "password");
             cfg.srv[i]->type  = cfg_get_int(srv_ent, "type");

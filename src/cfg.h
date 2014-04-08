@@ -30,6 +30,7 @@ typedef struct
 {
     char *name;
     char *addr;
+    char *user;
     char *pwd;
     char *mount;        //mountpoint for icecast server
     unsigned int port;

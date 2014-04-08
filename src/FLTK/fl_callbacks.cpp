@@ -89,14 +89,16 @@ void button_connect_cb()
     }
 
     if(cfg.srv[cfg.selected_srv]->type == SHOUTCAST)
-        snprintf(text_buf, sizeof(text_buf), "Connecting to %s:%u (%u) ...",
+        snprintf(text_buf, sizeof(text_buf), "Connecting to %s:%u (%u) as %s...",
             cfg.srv[cfg.selected_srv]->addr,
             cfg.srv[cfg.selected_srv]->port+1,
-            cfg.srv[cfg.selected_srv]->port);
+	    cfg.srv[cfg.selected_srv]->port,
+            cfg.srv[cfg.selected_srv]->user);
     else
-        snprintf(text_buf, sizeof(text_buf), "Connecting to %s:%u ...",
+        snprintf(text_buf, sizeof(text_buf), "Connecting to %s:%u  as %s...",
             cfg.srv[cfg.selected_srv]->addr,
-            cfg.srv[cfg.selected_srv]->port);
+	    cfg.srv[cfg.selected_srv]->port,
+	    cfg.srv[cfg.selected_srv]->user);
 
     print_info(text_buf, 0);
 
@@ -172,9 +174,10 @@ void button_connect_cb()
                 cfg.audio.samplerate
                 );
 
-        if(cfg.srv[cfg.selected_srv]->type == ICECAST)
-            sprintf(text_buf, "%sMountpoint: %s\n", text_buf,
-                    cfg.srv[cfg.selected_srv]->mount);
+        if(cfg.srv[cfg.selected_srv]->type == ICECAST) 
+            sprintf(text_buf, "%sMountpoint: %s\nUser:%s", text_buf,
+                    cfg.srv[cfg.selected_srv]->mount,
+		    cfg.srv[cfg.selected_srv]->user);
 
         print_info(text_buf, 0);
 
@@ -316,9 +319,14 @@ void button_add_srv_add_cb()
     {
         cfg.srv[i]->mount = (char*)malloc(strlen(fl_g->input_add_srv_mount->value())+1);
         strcpy(cfg.srv[i]->mount, fl_g->input_add_srv_mount->value());
-    }
-    else
+
+	cfg.srv[i]->user = (char*)malloc(strlen(fl_g->input_add_srv_user->value())+1);
+	strcpy(cfg.srv[i]->user, fl_g->input_add_srv_user->value());
+
+    } else {
         cfg.srv[i]->mount = NULL;
+        cfg.srv[i]->user = "source";
+    }
 
     if(fl_g->radio_add_srv_shoutcast->value())
         cfg.srv[i]->type = SHOUTCAST;
@@ -349,6 +357,7 @@ void button_add_srv_add_cb()
     //reset the input fields and hide the window
     fl_g->input_add_srv_name->value("");
     fl_g->input_add_srv_addr->value("");
+    fl_g->input_add_srv_user->value("");
     fl_g->input_add_srv_port->value("");
     fl_g->input_add_srv_pwd->value("");
     fl_g->input_add_srv_mount->value("");
@@ -713,6 +722,7 @@ void button_cfg_edit_srv_cb()
 
     fl_g->input_add_srv_name->value(cfg.srv[srv]->name);
     fl_g->input_add_srv_addr->value(cfg.srv[srv]->addr);
+    fl_g->input_add_srv_user->value(cfg.srv[srv]->user);
 
     snprintf(dummy, 6, "%u", cfg.srv[srv]->port);
     fl_g->input_add_srv_port->value(dummy);
@@ -722,12 +732,20 @@ void button_cfg_edit_srv_cb()
     {
         fl_g->input_add_srv_mount->value("");
         fl_g->input_add_srv_mount->deactivate();
+
+        fl_g->input_add_srv_user->value("source");
+        fl_g->input_add_srv_user->deactivate();
+
         fl_g->radio_add_srv_shoutcast->setonly();
     }
     else //if(cfg.srv[srv]->type == ICECAST)
     {
         fl_g->input_add_srv_mount->value(cfg.srv[srv]->mount);
         fl_g->input_add_srv_mount->activate();
+
+        fl_g->input_add_srv_user->value(cfg.srv[srv]->user);
+        fl_g->input_add_srv_user->activate();
+
         fl_g->radio_add_srv_icecast->setonly();
     }
 
@@ -835,6 +853,15 @@ void button_add_srv_save_cb()
 
     strcpy(cfg.srv[srv_num]->addr, fl_g->input_add_srv_addr->value());
 
+
+    //update current server user // XXX  move to ICECAST conditional?
+    cfg.srv[srv_num]->user =
+        (char*) realloc(cfg.srv[srv_num]->user,
+                sizeof(char) * strlen(fl_g->input_add_srv_user->value())+1);
+
+    strcpy(cfg.srv[srv_num]->user, fl_g->input_add_srv_user->value());
+
+
     //update current server port
     cfg.srv[srv_num]->port = (unsigned int)atoi(fl_g->input_add_srv_port->value());
 
@@ -868,6 +895,7 @@ void button_add_srv_save_cb()
     //reset the input fields and hide the window
     fl_g->input_add_srv_name->value("");
     fl_g->input_add_srv_addr->value("");
+    fl_g->input_add_srv_user->value("");
     fl_g->input_add_srv_port->value("");
     fl_g->input_add_srv_pwd->value("");
     fl_g->input_add_srv_mount->value("");
@@ -1356,6 +1384,7 @@ void button_add_srv_cancel_cb()
 {
     fl_g->input_add_srv_name->value("");
     fl_g->input_add_srv_addr->value("");
+    fl_g->input_add_srv_user->value("");
     fl_g->input_add_srv_port->value("");
     fl_g->input_add_srv_pwd->value("");
     fl_g->input_add_srv_mount->value("");

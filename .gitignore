@@ -1,17 +1,4 @@
 *~
-*.class
-*.dex
-*.apk
-bin/
-*.keystore
-local.properties
-gen/
-*jar
-workspace.xml
-uiDesigner.xml
-encodings.xml
-out/
-.idea/
 *.swp
 *.o
 *.so
@@ -22,4 +9,7 @@ out/
 *.tar
 *.gz
 *.log
-*.mk
+config.mk
+src/butt
+src/FLTK/flgui.cpp
+src/FLTK/flgui.h
