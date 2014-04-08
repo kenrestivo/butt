@@ -1,0 +1,10 @@
+TODO for THE BUTT
+
+* testing
+** TODO test usernames with icecast
+** TODO test usernames with an http harbor
+** TODO test usernames airtime directly
+* building
+** TODO compiling/testing/redistributing on windoze
+** TODO compile/testing/distribute on mac!
+** TODO post binaries for all of the above.
