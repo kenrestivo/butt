@@ -72,7 +72,7 @@ int main()
     SHOW_GUI();
 
     snprintf(info_buf, sizeof(info_buf),
-            "starting %s\nwritten by Daniel Noethen\n", VERSION);
+            "starting %s\nwritten by Daniel Noethen,\nmodified by ken restivo\n", VERSION);
     print_info(info_buf, 0);
 
 #ifdef _WIN32

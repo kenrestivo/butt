@@ -1,8 +1,11 @@
+Version 0.1.13 (2014-???)
+* support adding users other than "source" for streaming to Liquidsoap http harbors and/or Airtime
+
 Version 0.1.12 (2010-04-10)
 ==========
 * butt is now able to connect automatically after startup
 * shortened time between connect attempts (fixes Shouted.FM connection problems)
-* improved wrong password detection for shoutcast	
+* improved wrong password detection for shoutcast
 
 Version 0.1.11-2 (2008-12-14)
 ==========
@@ -19,7 +22,7 @@ Version 0.1.11 (2008-10-26)
 * removed buffer overrun messages
 * recording can be now stopped with the stop-button
 * replaced pcm recording by wav recording
-* recording as ogg is now possible 
+* recording as ogg is now possible
 * added "stay on top" checkbox
 * fixed possible crash when changing mp3 settings while streaming
 

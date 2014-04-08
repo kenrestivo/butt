@@ -396,8 +396,8 @@ exec 4> config.mk
 
 echo "# butts's config.mk" >&4
 echo "#_______________________" >&4
-echo "DIST_VER=butt-0.1.12" >&4
-echo "VERSION=\\\"butt-0.1.12\\\"" >&4
+echo "DIST_VER=butt-0.1.13" >&4
+echo "VERSION=\\\"butt-0.1.13\\\"" >&4
 echo "prefix=$prefix" >&4
 echo "CXX=${CXX}" >&4
 echo "CXXFLAGS=${CXXFLAGS}" >&4
