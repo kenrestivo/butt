@@ -420,7 +420,13 @@ check_portaudio
 [ "$CHECK_LIBVORBIS" -eq 1 ] && check_libvorbis
 [ "$CHECK_LIBLAME" -eq 1 ] && check_libmp3lame
 
-[ "$STATIC" -eq 1 ] && echo "LDFLAGS += -lasound -lpthread -L.. ../libstdc++.a /usr/lib/libshout.a /usr/lib/libvorbisenc.a /usr/lib/libvorbis.a /usr/lib/libogg.a /usr/lib/libmp3lame.a /usr/lib/libportaudio.a /usr/lib/libjack.a /usr/lib/librt.a" >&4
+if [ "$STATIC" -eq 1 ] ; then
+    echo "LDFLAGS += -m32 -lasound -lpthread -L.. ../libstdc++.a /usr/lib/libshout.a /usr/lib/libvorbisenc.a /usr/lib/libvorbis.a /usr/lib/libogg.a /usr/lib/libmp3lame.a /usr/lib/libportaudio.a /usr/lib/libjack.a /usr/lib/librt.a" >&4
+    echo "CXXFLAGS += -m32" >&4
+    echo "CFLAGS += -m32" >&4
+fi
+
+
 [ "$STATIC" -eq 0 ] && echo "LDFLAGS += -lmp3lame" >&4
 
 

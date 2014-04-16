@@ -17,7 +17,7 @@ clean:
 dist:
 #Make the binary package
 	$(MAKE) -C src distclean
-	./configure --static
+	./configure --static --host=i586-linux-gnu
 	$(MAKE) -C src
 	mkdir $(DIST_VER)-linux-bin
 	cp -R src/butt player_plugins/ ChangeLog README LICENSE KNOWN_BUGS \
