@@ -1,0 +1,10 @@
+This file contains the most importand news of butt 0.1.13
+* added support for lower bitrates (24k, 16k, 8k)
+* added support for user defined configuration path e.g. "butt -c <path_to_config>"
+* added support for user names in Icecast
+* added gain slider. This slider multiplies the audio input samples with the given factor
+* added .manifest file to disable the VirtualStore on Windows Vista and higher
+* added the ability to automatically split the recording every 'n' minutes
+* added feature for importing and exporting configuration files
+
+Refer to ChangeLog for more details

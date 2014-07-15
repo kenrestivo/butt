@@ -1,0 +1,6 @@
+?package(butt):needs="X11" section="Applications/Sound" \
+  title="butt" command="/usr/bin/butt" \
+  icon="/usr/share/pixmaps/butt32.xpm" \
+  icon32x32="/usr/share/pixmaps/butt32.xpm" \
+  icon16x16="/usr/share/pixmaps/butt16.xpm"
+
