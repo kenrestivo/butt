@@ -29,12 +29,11 @@ extern bool streaming;
 extern bool song_timeout_running; //TRUE if automatic song updating is running
 
 extern int stream_socket;
-extern unsigned int bytes_sent;
-extern unsigned int bytes_written;
+extern double kbytes_sent;
+extern double kbytes_written;
 
 extern sec_timer rec_timer;
 extern sec_timer stream_timer;
-extern sec_timer xrun_timer;
 
 extern lame_enc lame_stream;
 extern lame_enc lame_rec;

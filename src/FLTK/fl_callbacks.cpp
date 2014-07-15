@@ -12,6 +12,8 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include <errno.h>
 #include <unistd.h>
@@ -27,7 +29,9 @@
 #include <FL/fl_ask.H>
 #include <FL/Fl_Color_Chooser.H>
 
-#include "FL/Fl_Native_File_Chooser.H"
+#include "config.h"
+
+#include "FL/Fl_My_Native_File_Chooser.H"
 #include "cfg.h"
 #include "butt.h"
 #include "port_audio.h"
@@ -37,8 +41,9 @@
 #include "lame_encode.h"
 #include "fl_callbacks.h"
 #include "strfuncs.h"
+#include "flgui.h"
+#include "util.h"
 
-#include "config.h"
 
 flgui *fl_g; 
 int display_info = STREAM_TIME;
@@ -47,6 +52,7 @@ void button_connect_cb()
 {
     if(connected)
         return;
+
 
     int (*xc_connect)() = NULL;
     int rv;
@@ -68,7 +74,7 @@ void button_connect_cb()
 
     if(!strcmp(cfg.audio.codec, "ogg") && (cfg.audio.bitrate < 48))
     {
-        print_info("ogg doesn't seem to support bitrates \n"
+        print_info("Ogg doesn't support bitrates \n"
                     "lower than 48kbit",1);
         return;
     }
@@ -78,27 +84,15 @@ void button_connect_cb()
         return;
     }
 
-
-    if(cfg.main.num_of_srv < 1)
-    {
-        print_info("There must be at least one server defined.\n"
-                   "Click on the red button right to the LCD to\n"
-                   "add a server", 1);
-        return;
-
-    }
-
     if(cfg.srv[cfg.selected_srv]->type == SHOUTCAST)
-        snprintf(text_buf, sizeof(text_buf), "Connecting to %s:%u (%u) as %s...",
+        snprintf(text_buf, sizeof(text_buf), "Connecting to %s:%u (%u) ...",
             cfg.srv[cfg.selected_srv]->addr,
             cfg.srv[cfg.selected_srv]->port+1,
-	    cfg.srv[cfg.selected_srv]->port,
-            cfg.srv[cfg.selected_srv]->user);
+            cfg.srv[cfg.selected_srv]->port);
     else
-        snprintf(text_buf, sizeof(text_buf), "Connecting to %s:%u  as %s...",
+        snprintf(text_buf, sizeof(text_buf), "Connecting to %s:%u ...",
             cfg.srv[cfg.selected_srv]->addr,
-	    cfg.srv[cfg.selected_srv]->port,
-	    cfg.srv[cfg.selected_srv]->user);
+            cfg.srv[cfg.selected_srv]->port);
 
     print_info(text_buf, 0);
 
@@ -129,39 +123,19 @@ void button_connect_cb()
 		else
 			dummy++;
 
-		/*
-        switch(dummy)
-        {
-            case 0:
-                print_lcd("connecting", 10, 0, 1);
-                dummy++;
-                break;
-            case 10:
-            case 20:
-                print_lcd(".", 1, 0, 0);
-                dummy++;
-                break;
-            case 30:
-                print_lcd(".", 1, 0, 0);
-                dummy = 0;
-                break;
-        }*/
 
-        Fl::check();
+
+        Fl::wait(0);
     }
 
     if(connected)
     {
-
-
-#if HAVE_LIBVORBIS
         //we have to make sure that the first audio data
         //the server sees are the ogg headers
         if(!strcmp(cfg.audio.codec, "ogg"))
             vorbis_enc_write_header(&vorbis_stream);
-#endif
 
-        print_info("connection established", 0);
+        print_info("Connection established", 0);
         snprintf(text_buf, sizeof(text_buf),
                 "Settings:\n"
                 "Type:       %s\n"
@@ -174,10 +148,11 @@ void button_connect_cb()
                 cfg.audio.samplerate
                 );
 
-        if(cfg.srv[cfg.selected_srv]->type == ICECAST) 
-            sprintf(text_buf, "%sMountpoint: %s\nUser:%s", text_buf,
+        if(cfg.srv[cfg.selected_srv]->type == ICECAST)
+            sprintf(text_buf, "%sMountpoint: %s\n"
+                                "User:       %s\n", text_buf,
                     cfg.srv[cfg.selected_srv]->mount,
-		    cfg.srv[cfg.selected_srv]->user);
+                    cfg.srv[cfg.selected_srv]->usr);
 
         print_info(text_buf, 0);
 
@@ -198,7 +173,6 @@ void button_connect_cb()
         }
 
         pa_new_frames = 0;
-        //timer_init(&xrun_timer, 5);
 
 		//Just in case the record routine started a check_time timeout
 		//already
@@ -206,7 +180,6 @@ void button_connect_cb()
 
 		Fl::add_timeout(0.1, &check_time);
 
-        //Fl::add_timeout(0.1, &check_xrun);
         Fl::add_timeout(0.1, &check_if_disconnected);
 
         if(cfg.main.song_update && !song_timeout_running)
@@ -243,7 +216,7 @@ void button_cfg_cb()
 /*
  * This is a bit stupid. Well, its Win32...
  * We need to place the cfg window a bit more to the right, otherwise
- * the main und the cfg window would overlap
+ * the main and the cfg window would overlap
 */
 
 #ifdef _WIN32
@@ -265,14 +238,39 @@ void button_cfg_cb()
     }
 }
 
+// add server
 void button_add_srv_add_cb()
 {
     int i;
 
     //error checking
+    if((fl_g->radio_add_srv_icecast->value()) && (strlen(fl_g->input_add_srv_mount->value()) == 0))
+    {
+        fl_alert("No mountpoint specified\nSetting mountpoint to \"stream\"");
+        fl_g->input_add_srv_mount->value("stream");
+    }
+    if((fl_g->radio_add_srv_icecast->value()) && (strlen(fl_g->input_add_srv_usr->value()) == 0))
+    {
+        fl_alert("No user specified\nSetting user to \"source\"");
+        fl_g->input_add_srv_usr->value("source");
+    }
     if(strlen(fl_g->input_add_srv_name->value()) == 0)
     {
         fl_alert("No name specified");
+        return;
+    }                               
+    if(cfg.main.srv_ent != NULL)
+    {
+        if(strlen(fl_g->input_add_srv_name->value()) + strlen(cfg.main.srv_ent) > 1000)
+        {
+            fl_alert("The sum of characters of all your server names exeeds 1000\n"
+                    "Please reduce the count of characters of each server name");
+            return;
+        }
+    }
+    if(strpbrk(fl_g->input_add_srv_name->value(), ";\\/\n\r") != NULL)
+    {
+        fl_alert("No newline characters and ;/\\ are allowed in the name field");
         return;
     }
     if(strlen(fl_g->input_add_srv_addr->value()) == 0)
@@ -290,12 +288,22 @@ void button_add_srv_add_cb()
         fl_alert("No port specified");
         return;
     }
-    else if(( atoi(fl_g->input_add_srv_port->value()) > 65535) ||
-            (atoi(fl_g->input_add_srv_port->value()) < 0) )
+    else if((atoi(fl_g->input_add_srv_port->value()) > 65535) ||
+            (atoi(fl_g->input_add_srv_port->value()) < 1) )
     {
-        fl_alert("Invalid portnumber\nThe portnumber may range from 0 to 65535");
+        fl_alert("Invalid port number\nThe port number must be between 1 and 65535");
         return;
 
+    }
+    
+    //check if the name already exists
+    for(i = 0; i < cfg.main.num_of_srv; i++)
+    {
+        if(!strcmp(fl_g->input_add_srv_name->value(), cfg.srv[i]->name))
+        {
+            fl_alert("Server name already exist!");
+            return;
+        }
     }
 
     i = cfg.main.num_of_srv;
@@ -310,28 +318,31 @@ void button_add_srv_add_cb()
     cfg.srv[i]->addr = (char*)malloc(strlen(fl_g->input_add_srv_addr->value())+1);
     strcpy(cfg.srv[i]->addr, fl_g->input_add_srv_addr->value());
 
+    //strip leading http:// from addr
+    if(strstr(cfg.srv[i]->addr, "http://"))
+        cfg.srv[i]->addr += strlen("http://");
+
     cfg.srv[i]->pwd = (char*)malloc(strlen(fl_g->input_add_srv_pwd->value())+1);
     strcpy(cfg.srv[i]->pwd, fl_g->input_add_srv_pwd->value());
 
-    cfg.srv[i]->port = (unsigned int)atoi(fl_g->input_add_srv_port->value());
+    cfg.srv[i]->port = atoi(fl_g->input_add_srv_port->value());
 
     if(fl_g->radio_add_srv_icecast->value())
     {
         cfg.srv[i]->mount = (char*)malloc(strlen(fl_g->input_add_srv_mount->value())+1);
         strcpy(cfg.srv[i]->mount, fl_g->input_add_srv_mount->value());
 
-	cfg.srv[i]->user = (char*)malloc(strlen(fl_g->input_add_srv_user->value())+1);
-	strcpy(cfg.srv[i]->user, fl_g->input_add_srv_user->value());
+        cfg.srv[i]->usr = (char*)malloc(strlen(fl_g->input_add_srv_usr->value())+1);
+        strcpy(cfg.srv[i]->usr, fl_g->input_add_srv_usr->value());
 
-    } else {
-        cfg.srv[i]->mount = NULL;
-        cfg.srv[i]->user = "source";
-    }
-
-    if(fl_g->radio_add_srv_shoutcast->value())
-        cfg.srv[i]->type = SHOUTCAST;
-    if(fl_g->radio_add_srv_icecast->value())
         cfg.srv[i]->type = ICECAST;
+    }
+    else
+    {
+        cfg.srv[i]->mount = NULL;
+        cfg.srv[i]->usr = NULL;
+        cfg.srv[i]->type = SHOUTCAST;
+    }
 
     if(cfg.main.num_of_srv > 1)
     {
@@ -346,25 +357,31 @@ void button_add_srv_add_cb()
         sprintf(cfg.main.srv_ent, "%s", cfg.srv[i]->name);
     }
 
-    if(cfg.main.srv == NULL)
-        cfg.main.srv = (char*)malloc(strlen(cfg.srv[cfg.selected_srv]->name)+1);
-    else
-        cfg.main.srv = (char*)realloc(cfg.main.srv,
-                strlen(cfg.srv[cfg.selected_srv]->name)+1);
+    cfg.main.srv = (char*)realloc(cfg.main.srv, strlen(cfg.srv[i]->name)+1);
 
-    strcpy(cfg.main.srv, cfg.srv[cfg.selected_srv]->name);
+    strcpy(cfg.main.srv, cfg.srv[i]->name);
 
     //reset the input fields and hide the window
     fl_g->input_add_srv_name->value("");
     fl_g->input_add_srv_addr->value("");
-    fl_g->input_add_srv_user->value("");
     fl_g->input_add_srv_port->value("");
     fl_g->input_add_srv_pwd->value("");
     fl_g->input_add_srv_mount->value("");
+    fl_g->input_add_srv_usr->value("");
     fl_g->window_add_srv->hide();
 
+    fl_g->choice_cfg_act_srv->add(cfg.srv[i]->name);
+    fl_g->choice_cfg_act_srv->redraw();      
+
+    //Activate del and edit buttons
+    fl_g->button_cfg_edit_srv->activate();
+    fl_g->button_cfg_del_srv->activate();
+
+    // make added server the active server
+    fl_g->choice_cfg_act_srv->value(i);
+    choice_cfg_act_srv_cb();
+
     unsaved_changes = 1;
-    fill_cfg_widgets();
 }
 
 void button_cfg_del_srv_cb()
@@ -386,7 +403,6 @@ void button_cfg_del_srv_cb()
     free(cfg.srv[cfg.main.num_of_srv-1]);
 
     cfg.main.num_of_srv--;
-    cfg.selected_srv = 0;
 
     //rearrange the string that contains all server names
     memset(cfg.main.srv_ent, 0, strlen(cfg.main.srv_ent));
@@ -400,13 +416,27 @@ void button_cfg_del_srv_cb()
 
     }
 
-    //clear the server choicemenu in the main and server section
-    //fill_cfg_widgets() will refill them
-    fl_g->choice_cfg_act_srv->clear();
+    fl_g->choice_cfg_act_srv->remove(cfg.selected_srv);
     fl_g->choice_cfg_act_srv->redraw();       //Yes we need this :-(
 
+    if(cfg.main.num_of_srv == 0)
+    {
+        fl_g->button_cfg_edit_srv->deactivate();
+        fl_g->button_cfg_del_srv->deactivate();
+    }
+
+    if(cfg.selected_srv > 0)
+        cfg.selected_srv--;
+    else
+        cfg.selected_srv = 0;
+
+    if(cfg.main.num_of_srv > 0)
+    {
+        fl_g->choice_cfg_act_srv->value(cfg.selected_srv);
+        choice_cfg_act_srv_cb();
+    }
+
     unsaved_changes = 1;
-    fill_cfg_widgets();
 }
 
 void button_cfg_del_icy_cb()
@@ -428,7 +458,6 @@ void button_cfg_del_icy_cb()
     free(cfg.icy[cfg.main.num_of_icy-1]);
 
     cfg.main.num_of_icy--;
-    cfg.selected_icy = 0;
 
      //rearrange the string that contains all ICY names
     memset(cfg.main.icy_ent, 0, strlen(cfg.main.icy_ent));
@@ -441,12 +470,29 @@ void button_cfg_del_icy_cb()
             strcat(cfg.main.icy_ent, ";");
     }
 
-    fl_g->choice_cfg_act_icy->clear();
-    fl_g->choice_cfg_act_icy->redraw();       //Yes we need this :-(
+
+    fl_g->choice_cfg_act_icy->remove(cfg.selected_icy);
+    fl_g->choice_cfg_act_icy->redraw();       
+
+    if(cfg.main.num_of_icy == 0)
+    {
+        fl_g->button_cfg_edit_icy->deactivate();
+        fl_g->button_cfg_del_icy->deactivate();
+    }
+
+    if(cfg.selected_icy > 0)
+        cfg.selected_icy--;
+    else
+        cfg.selected_icy = 0;
+
+    if(cfg.main.num_of_icy > 0)
+    {
+        fl_g->choice_cfg_act_icy->value(cfg.selected_icy);
+        choice_cfg_act_icy_cb();
+    }
+
 
     unsaved_changes = 1;
-
-    fill_cfg_widgets();
 }
 
 void button_disconnect_cb()
@@ -461,6 +507,9 @@ void button_disconnect_cb()
             case 0:
                 return;
             case 1:
+                Fl::remove_timeout(&check_split_time);
+                fl_g->input_rec_split_time->activate();
+                fl_g->text_rec_split_time->activate();
                 snd_stop_rec();
 				Fl::remove_timeout(&check_time);
                 fl_g->lcd->clear();
@@ -503,7 +552,6 @@ void button_disconnect_cb()
 
     if(connected)
     {
-        //Fl::remove_timeout(&check_xrun);
         Fl::remove_timeout(&check_if_disconnected);
         snd_stop_stream();
 
@@ -523,14 +571,17 @@ void button_record_cb()
     int i;
     int rc = 0;
     int cancel = 0;
-    bool index = 0;
-    char m[3], d[3], y[5];
+    static int initial_call = 1;
     char mode[3];
     char i_str[10];
-    char *path_bak = NULL;
+    bool index = 0;
+    char *path_with_placeholder;
+    char *path_for_index_loop;
+    char *path_without_split_time;
+    char *ext;
+    FILE *fd;
+    
 
-    struct tm *date;
-    const time_t t = time(NULL);
 
 
     if(recording)
@@ -539,6 +590,10 @@ void button_record_cb()
         if(rc == 0)//if NO pressed
             return;
 
+        fl_g->input_rec_split_time->activate();
+        fl_g->text_rec_split_time->activate();
+
+        Fl::remove_timeout(&check_split_time);
         snd_stop_rec();
         if(!connected)
         {
@@ -554,7 +609,16 @@ void button_record_cb()
 
     if(strlen(cfg.rec.filename) == 0)
     {
-        fl_alert("No filename specified");
+        fl_alert("No recording filename specified");
+        return;
+    }
+
+    //Don't allow recording when ogg or wav is selected as record codec
+    //only lame (mp3) is able to convert the samplerate
+    if(((fl_g->radio_rec_codec_wav->value() || (fl_g->radio_rec_codec_ogg->value())) &&
+       fl_g->choice_rec_samplerate->value() !=  fl_g->choice_cfg_samplerate->value()))
+    {
+        fl_alert("Stream and Record samplerate do not match\nRecording canceled");
         return;
     }
 
@@ -562,42 +626,72 @@ void button_record_cb()
     cfg.rec.path = (char*) malloc((strlen(cfg.rec.folder) +
                 strlen(cfg.rec.filename)) * sizeof(char) + 10);
 
-    date = localtime(&t);
-
-    snprintf(m, 3, "%02d", date->tm_mon+1);
-    snprintf(d, 3, "%02d", date->tm_mday);
-    snprintf(y, 5, "%d",   date->tm_year+1900);
 
     strcpy(cfg.rec.path, cfg.rec.folder);
     strcat(cfg.rec.path, cfg.rec.filename);
 
-    strrpl(&cfg.rec.path, "%m", m);
-    strrpl(&cfg.rec.path, "%d", d);
-    strrpl(&cfg.rec.path, "%y", y);
-
+    //expand string like file_%d_%m_%y to file_05_11_2014
+    expand_string(&cfg.rec.path);
 
     //check if there is an index marker in the filename
     if(strstr(cfg.rec.filename, "%i"))
 	{
 		index = 1;
-		path_bak = strdup(cfg.rec.path);
-		strrpl(&cfg.rec.path, "%i", "0");
+
+        path_with_placeholder = strdup(cfg.rec.path);
+        path_for_index_loop = strdup(cfg.rec.path);
+
+		strrpl(&cfg.rec.path, (char*)"%i", (char*)"0");
 	}
+    path_without_split_time = strdup(cfg.rec.path);
+
+    if(cfg.rec.split_time > 0)
+    {
+        ext = util_get_file_extension(cfg.rec.filename);
+        if(ext == NULL)
+        {
+            print_info("Could not find a file extension (mp3/ogg/wav) in current filename\n"
+                    "Automatic file splitting is deactivated", 0);
+        }
+        else
+        {
+            if(index == 1)
+            {
+                free(path_for_index_loop);
+                path_for_index_loop = strdup(path_with_placeholder);
+                strinsrt(&path_for_index_loop, (char*)"-1", strrstr(path_for_index_loop, ext)-1);
+            }
+            strinsrt(&cfg.rec.path, (char*)"-1", strrstr(cfg.rec.path, ext)-1);
+        }
+    }
+
+    
 
     //check if the file already exists
-    if(fopen(cfg.rec.path, "rb") != NULL)
+if((fd = fl_fopen(cfg.rec.path, "rb")) != NULL)
     {
+        fclose(fd);
 
         if(index)
         {
-			//increment the index until we find a filename that doesn't exists
-            for(i = 1; fopen(cfg.rec.path, "rb") != NULL; i++)
+	    //increment the index until we find a filename that doesn't exist yet
+            for(i = 1; ; i++)
             {
-                strcpy(cfg.rec.path, path_bak);
+                free(cfg.rec.path);
+                cfg.rec.path = strdup(path_for_index_loop);
                 snprintf(i_str, 10, "%d", i);
-                strrpl(&cfg.rec.path, "%i", i_str);
+                strrpl(&cfg.rec.path, (char*)"%i", i_str);
+
+                
+                path_without_split_time = strdup(path_with_placeholder);
+                strrpl(&path_without_split_time, (char*)"%i", i_str);
+
+                if((fd = fl_fopen(cfg.rec.path, "rb")) == NULL)
+                    break;
+
+                fclose(fd);
             }
-            free(path_bak);
+            free(path_for_index_loop);
             strcpy(mode, "wb");
         }
         else
@@ -619,24 +713,34 @@ void button_record_cb()
     }
     else //selected file doesn't exist yet
 	{
-		if(index)
-			free(path_bak);
         strcpy(mode, "wb");
 	}
 
     if(cancel == 1)
         return;
 
-    if((cfg.rec.fd = fopen(cfg.rec.path, mode)) == NULL)
+    if((cfg.rec.fd = fl_fopen(cfg.rec.path, mode)) == NULL)
     {
-        fl_alert("could not open:\n%s", cfg.rec.path);
+        fl_alert("Could not open:\n%s", cfg.rec.path);
         return;
     }
 
     record = 1;
     timer_init(&rec_timer, 1);
+
+    fl_g->input_rec_split_time->deactivate();
+    fl_g->text_rec_split_time->deactivate();
+
     //create the recording thread
     snd_start_rec();
+
+    if (cfg.rec.split_time > 0)
+    {
+        free(cfg.rec.path);
+        cfg.rec.path = strdup(path_without_split_time);
+        Fl::add_timeout(60*cfg.rec.split_time, &check_split_time, &initial_call);
+
+    }
 
     if(!connected)
     {
@@ -645,7 +749,7 @@ void button_record_cb()
     }
 }
 
-void button_info_cb()
+void button_info_cb() //changed "Info" text to "More"
 {
     if (!fl_g->info_visible)
     {
@@ -653,9 +757,9 @@ void button_info_cb()
         fl_g->window_main->resize(fl_g->window_main->x(),
                                   fl_g->window_main->y(),
                                   fl_g->window_main->w(),
-                                  fl_g->info_output->y() + 180);
+                                  fl_g->info_output->y() + 205);
         fl_g->info_output->show();
-        fl_g->button_info->label("Info @2<");
+        fl_g->button_info->label("Less @2<");
         fl_g->info_visible = 1;
     }
     else
@@ -664,9 +768,9 @@ void button_info_cb()
         fl_g->window_main->resize(fl_g->window_main->x(),
                                   fl_g->window_main->y(),
                                   fl_g->window_main->w(),
-                                  fl_g->info_output->y());
+                                  fl_g->info_output->y() - 30);
         fl_g->info_output->hide();
-        fl_g->button_info->label("Info @2>");
+        fl_g->button_info->label("More @2>");
         fl_g->info_visible = 0;
     }
 }
@@ -698,6 +802,13 @@ void choice_cfg_act_icy_cb()
 void button_cfg_add_srv_cb()
 {
     fl_g->window_add_srv->label("Add Server");
+    fl_g->radio_add_srv_shoutcast->setonly();
+    fl_g->input_add_srv_mount->deactivate();
+    fl_g->input_add_srv_usr->deactivate();
+
+    fl_g->input_add_srv_pwd->input_type(FL_SECRET_INPUT);
+    fl_g->input_add_srv_pwd->redraw();
+    fl_g->button_cfg_show_pw->label("Show Password");
 
     fl_g->button_add_srv_save->hide();
     fl_g->button_add_srv_add->show();
@@ -722,30 +833,30 @@ void button_cfg_edit_srv_cb()
 
     fl_g->input_add_srv_name->value(cfg.srv[srv]->name);
     fl_g->input_add_srv_addr->value(cfg.srv[srv]->addr);
-    fl_g->input_add_srv_user->value(cfg.srv[srv]->user);
 
     snprintf(dummy, 6, "%u", cfg.srv[srv]->port);
     fl_g->input_add_srv_port->value(dummy);
     fl_g->input_add_srv_pwd->value(cfg.srv[srv]->pwd);
 
+    fl_g->input_add_srv_pwd->input_type(FL_SECRET_INPUT);
+    fl_g->input_add_srv_pwd->redraw();
+    fl_g->button_cfg_show_pw->label("Show Password");
+
+
     if(cfg.srv[srv]->type == SHOUTCAST)
     {
         fl_g->input_add_srv_mount->value("");
         fl_g->input_add_srv_mount->deactivate();
-
-        fl_g->input_add_srv_user->value("source");
-        fl_g->input_add_srv_user->deactivate();
-
+        fl_g->input_add_srv_usr->value("");
+        fl_g->input_add_srv_usr->deactivate();
         fl_g->radio_add_srv_shoutcast->setonly();
     }
     else //if(cfg.srv[srv]->type == ICECAST)
     {
         fl_g->input_add_srv_mount->value(cfg.srv[srv]->mount);
         fl_g->input_add_srv_mount->activate();
-
-        fl_g->input_add_srv_user->value(cfg.srv[srv]->user);
-        fl_g->input_add_srv_user->activate();
-
+        fl_g->input_add_srv_usr->value(cfg.srv[srv]->usr);
+        fl_g->input_add_srv_usr->activate();
         fl_g->radio_add_srv_icecast->setonly();
     }
 
@@ -813,16 +924,114 @@ void input_cfg_song_cb()
     unsaved_changes = 1;
 }
 
+void radio_add_srv_shoutcast_cb()
+{
+    fl_g->input_add_srv_mount->deactivate();
+    fl_g->input_add_srv_usr->deactivate();
+}
 
+void radio_add_srv_icecast_cb()
+{
+    fl_g->input_add_srv_mount->activate();
+    fl_g->input_add_srv_usr->activate();
+
+    fl_g->input_add_srv_mount->value("stream");
+    fl_g->input_add_srv_usr->value("source");
+}
+
+void button_add_srv_show_pwd_cb()
+{
+    if(fl_g->input_add_srv_pwd->input_type() == FL_SECRET_INPUT)
+    {
+        fl_g->input_add_srv_pwd->input_type(FL_NORMAL_INPUT);
+        fl_g->input_add_srv_pwd->redraw();
+        fl_g->button_cfg_show_pw->label("Hide Password");
+    }	
+    else
+    {
+        fl_g->input_add_srv_pwd->input_type(FL_SECRET_INPUT);
+        fl_g->input_add_srv_pwd->redraw();
+        fl_g->button_cfg_show_pw->label("Show Password");
+    }
+}
+
+
+// edit server
 void button_add_srv_save_cb()
 {
+    int i;
+
     if(cfg.main.num_of_srv < 1)
         return;
 
     int srv_num = fl_g->choice_cfg_act_srv->value();
     int len = 0;
 
+    //error checking
+    if((fl_g->radio_add_srv_icecast->value()) && (strlen(fl_g->input_add_srv_mount->value()) == 0))
+    {
+        fl_alert("No mountpoint specified\nSetting mountpoint to \"stream\"");
+        fl_g->input_add_srv_mount->value("stream");
+    }
+    if((fl_g->radio_add_srv_icecast->value()) && (strlen(fl_g->input_add_srv_usr->value()) == 0))
+    {
+        fl_alert("No user specified\nSetting user to \"source\"");
+        fl_g->input_add_srv_usr->value("source");
+    }
+    if(strlen(fl_g->input_add_srv_name->value()) == 0)
+    {
+        fl_alert("No name specified");
+        return;
+    }
+    if(cfg.main.srv_ent != NULL)
+    {
+        if(strlen(fl_g->input_add_srv_name->value()) + strlen(cfg.main.srv_ent) > 1000)
+        {
+            fl_alert("The sum of characters of all your server names exeeds 1000\n"
+                    "Please reduce the count of characters of each server name");
+            return;
+        }
+    }
+    if(strpbrk(fl_g->input_add_srv_name->value(), ";\\/\n\r") != NULL)
+    {
+        fl_alert("No newline characters and ;/\\ are allowed in the name field");
+        return;
+    }
+    if(strlen(fl_g->input_add_srv_addr->value()) == 0)
+    {
+        fl_alert("No address specified");
+        return;
+    }
+    if(strlen(fl_g->input_add_srv_pwd->value()) == 0)
+    {
+        fl_alert("No password specified");
+        return;
+    }
+    if(strlen(fl_g->input_add_srv_port->value()) == 0)
+    {
+        fl_alert("No port specified");
+        return;
+    }
+    else if(( atoi(fl_g->input_add_srv_port->value()) > 65535) ||
+            (atoi(fl_g->input_add_srv_port->value()) < 1) )
+    {
+        fl_alert("Invalid port number\nThe port number must be between 1 and 65535");
+        return;
+    }
 
+    //check if the name already exists
+    for(i = 0; i < cfg.main.num_of_srv; i++)
+    {
+        if(i == srv_num) //don't check name against it self
+            continue;
+        if(!strcmp(fl_g->input_add_srv_name->value(), cfg.srv[i]->name))
+        {
+            fl_alert("Server name already exist!");
+            return;
+        }
+    }
+
+    
     //update current server name
     cfg.srv[srv_num]->name =
         (char*) realloc(cfg.srv[srv_num]->name,
@@ -852,21 +1061,15 @@ void button_add_srv_save_cb()
                 sizeof(char) * strlen(fl_g->input_add_srv_addr->value())+1);
 
     strcpy(cfg.srv[srv_num]->addr, fl_g->input_add_srv_addr->value());
-
-
-    //update current server user // XXX  move to ICECAST conditional?
-    cfg.srv[srv_num]->user =
-        (char*) realloc(cfg.srv[srv_num]->user,
-                sizeof(char) * strlen(fl_g->input_add_srv_user->value())+1);
-
-    strcpy(cfg.srv[srv_num]->user, fl_g->input_add_srv_user->value());
-
+    
+    //strip leading http:// from addr
+    if(strstr(cfg.srv[srv_num]->addr, "http://"))
+        cfg.srv[srv_num]->addr += strlen("http://");
 
     //update current server port
     cfg.srv[srv_num]->port = (unsigned int)atoi(fl_g->input_add_srv_port->value());
 
     //update current server password
-
     cfg.srv[srv_num]->pwd =
         (char*) realloc(cfg.srv[srv_num]->pwd,
                     strlen(fl_g->input_add_srv_pwd->value())+1);
@@ -874,34 +1077,39 @@ void button_add_srv_save_cb()
     strcpy(cfg.srv[srv_num]->pwd, fl_g->input_add_srv_pwd->value());
 
     //update current server type
-
     if(fl_g->radio_add_srv_shoutcast->value())
         cfg.srv[srv_num]->type = SHOUTCAST;
     if(fl_g->radio_add_srv_icecast->value())
         cfg.srv[srv_num]->type = ICECAST;
 
-    //update current server mountpoint
+    //update current server mountpoint and user
     if(cfg.srv[srv_num]->type == ICECAST)
     {
         cfg.srv[srv_num]->mount =
             (char*) realloc(cfg.srv[srv_num]->mount,
                     sizeof(char) * strlen(fl_g->input_add_srv_mount->value())+1);
         strcpy(cfg.srv[srv_num]->mount, fl_g->input_add_srv_mount->value());
+
+        cfg.srv[srv_num]->usr =
+            (char*) realloc(cfg.srv[srv_num]->usr,
+                    sizeof(char) * strlen(fl_g->input_add_srv_usr->value())+1);
+        strcpy(cfg.srv[srv_num]->usr, fl_g->input_add_srv_usr->value());
+
     }
 
-    fl_g->choice_cfg_act_srv->clear();
+    fl_g->choice_cfg_act_srv->replace(srv_num, cfg.srv[srv_num]->name);
     fl_g->choice_cfg_act_srv->redraw();
 
     //reset the input fields and hide the window
     fl_g->input_add_srv_name->value("");
     fl_g->input_add_srv_addr->value("");
-    fl_g->input_add_srv_user->value("");
     fl_g->input_add_srv_port->value("");
     fl_g->input_add_srv_pwd->value("");
     fl_g->input_add_srv_mount->value("");
+    fl_g->input_add_srv_usr->value("");
     fl_g->window_add_srv->hide();
 
-    fill_cfg_widgets();
+    choice_cfg_act_srv_cb();
 
     unsaved_changes = 1;
 }
@@ -909,11 +1117,45 @@ void button_add_srv_save_cb()
 
 void button_add_icy_save_cb()
 {
+    int i;
+    
     if(cfg.main.num_of_icy < 1)
         return;
 
     int icy_num = fl_g->choice_cfg_act_icy->value();
     int len = 0;
+  
+    if(strlen(fl_g->input_add_icy_name->value()) == 0)
+    {
+        fl_alert("No name specified");
+        return;
+    }
+    if(cfg.main.icy_ent != NULL)
+    {
+        if(strlen(fl_g->input_add_icy_name->value()) + strlen(cfg.main.icy_ent) > 1000)
+        {
+            fl_alert("The sum of characters of all your icy names exeeds 1000\n"
+                    "Please reduce the count of characters of each icy name");
+            return;
+        }
+    }
+    if(strpbrk(fl_g->input_add_icy_name->value(), ";\\/\n\r") != NULL)
+    {
+        fl_alert("No newline characters and ;/\\ are allowed in the name field");
+        return;
+    }
+    
+    //check if the name already exists
+    for(i = 0; i < cfg.main.num_of_icy; i++)
+    {
+        if(i == icy_num) //don't check name against it self
+            continue;
+        if(!strcmp(fl_g->input_add_icy_name->value(), cfg.icy[i]->name))
+        {
+            fl_alert("Icy name already exist!");
+            return;
+        }
+    }
 
     //update current icy name
     cfg.icy[icy_num]->name =
@@ -981,10 +1223,10 @@ void button_add_icy_save_cb()
 
     fl_g->window_add_icy->hide();
 
-    fl_g->choice_cfg_act_icy->clear();
-    fl_g->choice_cfg_act_icy->redraw();
 
-    fill_cfg_widgets();
+    fl_g->choice_cfg_act_icy->replace(icy_num, cfg.icy[icy_num]->name);
+    fl_g->choice_cfg_act_icy->redraw();
+    choice_cfg_act_icy_cb();
 
     unsaved_changes = 1;
 }
@@ -1023,7 +1265,7 @@ void choice_cfg_bitrate_cb()
     int rc;
     int old_br;
     int sel_br;
-    int br_list[] = { 32, 40, 48, 56, 64, 80, 96,
+    int br_list[] = { 8, 16, 24, 32, 40, 48, 56, 64, 80, 96,
                       112, 128, 160, 192, 224, 256, 320 };
     char text_buf[256];
 
@@ -1037,40 +1279,38 @@ void choice_cfg_bitrate_cb()
     lame_stream.bitrate = br_list[sel_br];
     vorbis_stream.bitrate = br_list[sel_br];
 
-#if HAVE_LIBLAME
     if(fl_g->radio_cfg_codec_mp3->value())
     {
         rc = lame_enc_reinit(&lame_stream);
         if(rc != 0)
         {
-            print_info("The Sample-/Bitrate combination is invalid", 1);
+            print_info("Warning:\nThe stream Sample-/Bitrate combination is invalid", 1);
             fl_g->choice_cfg_bitrate->value(old_br);
             fl_g->choice_cfg_bitrate->redraw();
             cfg.audio.bitrate = br_list[old_br];
             lame_stream.bitrate = br_list[old_br];
             lame_enc_reinit(&lame_stream);
+            print_info("The previous values have been set\n", 1);
             return;
         }
     }
-#endif
-#if HAVE_LIBVORBIS
     if(fl_g->radio_cfg_codec_ogg->value())
     {
         rc = vorbis_enc_reinit(&vorbis_stream);
         if(rc != 0)
         {
-            print_info("The Sample-/Bitrate combination is invalid", 1);
+            print_info("Warning:\nThe stream Sample-/Bitrate combination is invalid", 1);
             cfg.audio.bitrate = br_list[old_br];
             vorbis_stream.bitrate = br_list[old_br];
             fl_g->choice_cfg_bitrate->value(old_br);
             fl_g->choice_cfg_bitrate->redraw();
             vorbis_enc_reinit(&vorbis_stream);
+            print_info("The previous values have been set\n", 1);
             return;
         }
     }
-#endif
 
-    snprintf(text_buf, sizeof(text_buf), "Set stream bitrate to: %dk", cfg.audio.bitrate);
+    snprintf(text_buf, sizeof(text_buf), "Stream bitrate set to: %dk", cfg.audio.bitrate);
     print_info(text_buf, 0);
 
     unsaved_changes = 1;
@@ -1081,7 +1321,7 @@ void choice_rec_bitrate_cb()
     int rc;
     int old_br;
     int sel_br;
-    int br_list[] = { 32, 40, 48, 56, 64, 80, 96,
+    int br_list[] = { 8, 16, 24, 32, 40, 48, 56, 64, 80, 96,
                       112, 128, 160, 192, 224, 256, 320 };
     char text_buf[256];
 
@@ -1096,49 +1336,48 @@ void choice_rec_bitrate_cb()
     lame_rec.bitrate = br_list[sel_br];
     vorbis_rec.bitrate = br_list[sel_br];
 
-#if HAVE_LIBLAME
-    if(fl_g->radio_cfg_codec_mp3->value())
+    if(fl_g->radio_rec_codec_mp3->value())
     {
-        rc = lame_enc_reinit(&lame_stream);
+        rc = lame_enc_reinit(&lame_rec);
         if(rc != 0)
         {
-            print_info("The Sample-/Bitrate combination is invalid", 1);
+            print_info("Warning:\nThe record Sample-/Bitrate combination is invalid", 1);
             fl_g->choice_rec_bitrate->value(old_br);
             fl_g->choice_rec_bitrate->redraw();
             cfg.rec.bitrate = br_list[old_br];
             lame_rec.bitrate = br_list[old_br];
             lame_enc_reinit(&lame_rec);
+            print_info("The previous values have been set", 1);
             return;
         }
     }
-#endif
-#if HAVE_LIBVORBIS
-    if(fl_g->radio_cfg_codec_ogg->value())
+    if(fl_g->radio_rec_codec_ogg->value())
     {
         rc = vorbis_enc_reinit(&vorbis_rec);
         if(rc != 0)
         {
-            print_info("The Sample-/Bitrate combination is invalid", 1);
+            print_info("Warning:\nThe record Sample-/Bitrate combination is invalid", 1);
             cfg.rec.bitrate = br_list[old_br];
             vorbis_rec.bitrate = br_list[old_br];
             fl_g->choice_rec_bitrate->value(old_br);
             fl_g->choice_rec_bitrate->redraw();
             vorbis_enc_reinit(&vorbis_rec);
+            print_info("The previous values have been set", 1);
             return;
         }
     }
-#endif
 
-    snprintf(text_buf, sizeof(text_buf), "Set record bitrate to: %dk", cfg.rec.bitrate);
+    snprintf(text_buf, sizeof(text_buf), "Record bitrate set to: %dk", cfg.rec.bitrate);
     print_info(text_buf, 0);
 
     unsaved_changes = 1;
 }
 
-void choice_cfg_samplerate_cb()
+void choice_cfg_samplerate_cb() 
 {
     int rc;
     int old_sr;
+    int old_rec_sr;
     int sel_sr;
     int *sr_list;
     char text_buf[256];
@@ -1146,6 +1385,8 @@ void choice_cfg_samplerate_cb()
     sr_list = cfg.audio.pcm_list[cfg.audio.dev_num]->sr_list;
 
     old_sr = cfg.audio.samplerate;
+    old_rec_sr = lame_rec.samplerate_in;
+
     for(int i = 0; i < 9; i++)
         if(sr_list[i] == cfg.audio.samplerate)
             old_sr = i;
@@ -1153,54 +1394,77 @@ void choice_cfg_samplerate_cb()
     sel_sr = fl_g->choice_cfg_samplerate->value();
 
     cfg.audio.samplerate = sr_list[sel_sr];
+    lame_rec.samplerate_in = sr_list[sel_sr];
     lame_stream.samplerate_in = sr_list[sel_sr];
     lame_stream.samplerate_out = sr_list[sel_sr];
     vorbis_stream.samplerate = sr_list[sel_sr]; 
 
-#if HAVE_LIBLAME    
+
     if(fl_g->radio_cfg_codec_mp3->value())
     {
         rc = lame_enc_reinit(&lame_stream);
         if(rc != 0)
         {
-            print_info("The Sample-/Bitrate combination is invalid", 1);
+            print_info("Warning:\nThe stream Sample-/Bitrate combination is invalid", 1);
             fl_g->choice_cfg_samplerate->value(old_sr);
             fl_g->choice_cfg_samplerate->redraw();
             cfg.audio.samplerate = sr_list[old_sr];
             lame_stream.samplerate_in = sr_list[old_sr];
             lame_stream.samplerate_out = sr_list[old_sr];
+            lame_rec.samplerate_in = old_rec_sr;
             lame_enc_reinit(&lame_stream);
+            print_info("The previous values have been set", 1);
+            return;
+        }
+        rc = lame_enc_reinit(&lame_rec);
+        if(rc != 0)
+        {
+            print_info("Warning:\nThe stream Sample-/Bitrate combination is invalid", 1);
+            fl_g->choice_cfg_samplerate->value(old_sr);
+            fl_g->choice_cfg_samplerate->redraw();
+            cfg.audio.samplerate = sr_list[old_sr];
+            lame_stream.samplerate_in = sr_list[old_sr];
+            lame_stream.samplerate_out = sr_list[old_sr];
+            lame_rec.samplerate_in = old_rec_sr;
+            lame_enc_reinit(&lame_stream);
+            print_info("The previous values have been set", 1);
             return;
         }
     }
-#endif
-#if HAVE_LIBVORBIS
     if(fl_g->radio_cfg_codec_ogg->value())
     {
         rc = vorbis_enc_reinit(&vorbis_stream);
         if(rc != 0)
         {
-            print_info("The Sample-/Bitrate combination is invalid", 1);
+            print_info("Warning:\nThe stream Sample-/Bitrate combination is invalid", 1);
             cfg.audio.samplerate = sr_list[old_sr];
             vorbis_stream.samplerate = sr_list[old_sr]; 
             fl_g->choice_cfg_samplerate->value(old_sr);
             fl_g->choice_cfg_samplerate->redraw();
             vorbis_enc_reinit(&vorbis_stream);
+            print_info("The previous values have been set", 1);
             return;
         }
     }
-#endif
+    snprintf(text_buf, sizeof(text_buf), "Stream samplerate set to: %dHz", cfg.audio.samplerate);
+    print_info(text_buf, 0);
+
+    //if wav or ogg is selected as record output
+    //then the audio/record samplerate are always the same
+    if(((fl_g->radio_rec_codec_wav->value() || (fl_g->radio_rec_codec_ogg->value())) &&
+       fl_g->choice_rec_samplerate->value(sel_sr) !=  fl_g->choice_cfg_samplerate->value(sel_sr)))
+    {
+        print_info("You can only have different samplerates when recording in mp3\n"
+                "Trying to set the record samplerate to the same value as the stream samplerate...", 0);
+
+        fl_g->choice_rec_samplerate->value(sel_sr);
+        choice_rec_samplerate_cb();
+    }
+
 
     //reinit portaudio
     snd_reinit();
 
-    //if wav is selected as record output
-    //then the audio/record samplerate are always the same
-    if(fl_g->radio_rec_codec_wav->value())
-        fl_g->choice_rec_samplerate->value(sel_sr);
-
-    snprintf(text_buf, sizeof(text_buf), "Set stream samplerate to: %dHz", cfg.audio.samplerate);
-    print_info(text_buf, 0);
 
     unsaved_changes = 1;
 }
@@ -1224,76 +1488,80 @@ void choice_rec_samplerate_cb()
     lame_rec.samplerate_out = sr_list[sel_sr];
     vorbis_rec.samplerate = sr_list[sel_sr];
 
-    //if wav is selected as record output
-    //then the audio/record samplerate are always the same
-    if(fl_g->radio_rec_codec_wav->value())
-    {
-        fl_g->choice_cfg_samplerate->value(sel_sr);
-        choice_cfg_samplerate_cb();
-    }
-#if HAVE_LIBLAME
+
     if(fl_g->radio_rec_codec_mp3->value())
     {
         rc = lame_enc_reinit(&lame_rec);
         if(rc != 0)
         {
-            print_info("The Sample-/Bitrate combination is invalid", 1);
+            print_info("Warning:\nThe record Sample-/Bitrate combination is invalid", 1);
             fl_g->choice_rec_samplerate->value(old_sr);
             fl_g->choice_rec_samplerate->redraw();
             cfg.rec.samplerate = sr_list[old_sr];
             lame_rec.samplerate_out = sr_list[old_sr];
             lame_enc_reinit(&lame_rec);
+            print_info("The previous values have been set", 1);
             return;
         }
     }
-#endif
-#if HAVE_LIBVORBIS
     if(fl_g->radio_rec_codec_ogg->value())
     {
         rc = vorbis_enc_reinit(&vorbis_rec);
         if(rc != 0)
         {
-            print_info("The Sample-/Bitrate combination is invalid", 1);
+            print_info("Warning:\nThe record Sample-/Bitrate combination is invalid", 1);
             fl_g->choice_rec_samplerate->value(old_sr);
             fl_g->choice_rec_samplerate->redraw();
             cfg.rec.samplerate = sr_list[old_sr];
             vorbis_rec.samplerate = sr_list[old_sr];
             vorbis_enc_reinit(&vorbis_rec);
+            print_info("The previous values have been set", 1);
             return;
         }
     }
-#endif
-    snprintf(text_buf, sizeof(text_buf), "Set record samplerate to: %dHz", cfg.rec.samplerate);
+
+    snprintf(text_buf, sizeof(text_buf), "Record samplerate set to: %dHz", cfg.rec.samplerate);
     print_info(text_buf, 0);
+
+    //if wav or ogg is selected as record output
+    //then the audio/record samplerate are always the same
+    if(((fl_g->radio_rec_codec_wav->value() || (fl_g->radio_rec_codec_ogg->value())) &&
+       fl_g->choice_rec_samplerate->value(sel_sr) !=  fl_g->choice_cfg_samplerate->value(sel_sr)))
+    {
+        print_info("You can only have different samplerates when recording in mp3\n"
+                "Trying to set the stream samplerate to the same value as the record samplerate...", 0);
+        fl_g->choice_cfg_samplerate->value(sel_sr);
+        choice_cfg_samplerate_cb();
+    }
 
     unsaved_changes = 1;
 }
 
 void radio_cfg_channel_stereo_cb()
 {
-    //TODO: error checking
 
     cfg.audio.channel = 2;
     lame_stream.channel = 2;
     vorbis_stream.channel = 2;
-
-#if HAVE_LIBLAME
+ 
     if(fl_g->radio_cfg_codec_mp3->value())
         lame_enc_reinit(&lame_stream);
-#endif
-#if HAVE_LIBVORBIS
     if(fl_g->radio_cfg_codec_ogg->value())
         vorbis_enc_reinit(&vorbis_stream);
-#endif
 
     snd_reinit();
     
+    print_info("Stream channels set to: stereo", 0);
+
+   
     //if wav is selected as record output
     //then the audio/record channel are always the same
-    if(fl_g->radio_rec_codec_wav->value())
+    if(fl_g->radio_rec_codec_wav->value() && cfg.rec.channel != 2)
+    {
         fl_g->radio_rec_channel_stereo->setonly();
+        radio_rec_channel_stereo_cb();
+    }
 
-    print_info("Set stream channels to: stereo", 0);
 
     unsaved_changes = 1;
 }
@@ -1303,24 +1571,22 @@ void radio_rec_channel_stereo_cb()
     cfg.rec.channel = 2;
     lame_rec.channel = 2;
     vorbis_rec.channel = 2;
-    
+ 
+    if(fl_g->radio_rec_codec_mp3->value())
+        lame_enc_reinit(&lame_rec);
+    if(fl_g->radio_rec_codec_ogg->value())
+        vorbis_enc_reinit(&vorbis_rec);
+
+    print_info("Record channels set to: stereo", 0);
+
+   
     //if wav is selected as record output
     //then the audio/record channel are always the same
-    if(fl_g->radio_rec_codec_wav->value())
+    if(fl_g->radio_rec_codec_wav->value() && cfg.audio.channel != 2)
     {
         fl_g->radio_cfg_channel_stereo->setonly();
         radio_cfg_channel_stereo_cb();
     }
-
-#if HAVE_LIBLAME
-    if(fl_g->radio_rec_codec_mp3->value())
-        lame_enc_reinit(&lame_rec);
-#endif
-#if HAVE_LIBVORBIS
-    if(fl_g->radio_rec_codec_ogg->value())
-        vorbis_enc_reinit(&vorbis_rec);
-#endif
-    print_info("Set record channels to: stereo", 0);
 
     unsaved_changes = 1;
 }
@@ -1330,24 +1596,25 @@ void radio_cfg_channel_mono_cb()
     cfg.audio.channel = 1;
     lame_stream.channel = 1;
     vorbis_stream.channel = 1;
-
-#if HAVE_LIBLAME
+    
+  
     if(fl_g->radio_cfg_codec_mp3->value())
         lame_enc_reinit(&lame_stream);
-#endif
-#if HAVE_LIBVORBIS
     if(fl_g->radio_cfg_codec_ogg->value())
         vorbis_enc_reinit(&vorbis_stream);
-#endif
+    
+    snd_reinit();
+
+    print_info("Stream channels set to: mono", 0);
     
     //if wav is selected as record output
     //then the audio/record channel are always the same
-    if(fl_g->radio_rec_codec_wav->value())
-        fl_g->radio_cfg_channel_mono->setonly();
+    if(fl_g->radio_rec_codec_wav->value() && cfg.rec.channel != 1)
+    {
+        fl_g->radio_rec_channel_mono->setonly();
+        radio_rec_channel_mono_cb();
+    }
 
-    snd_reinit();
-
-    print_info("Set stream channels to: mono", 0);
 
     unsaved_changes = 1;
 }
@@ -1358,24 +1625,21 @@ void radio_rec_channel_mono_cb()
     lame_rec.channel = 1;
     vorbis_rec.channel = 1;
     
+
+    if(fl_g->radio_rec_codec_mp3->value())
+        lame_enc_reinit(&lame_rec);
+    if(fl_g->radio_rec_codec_ogg->value())
+        vorbis_enc_reinit(&vorbis_rec);
+
+    print_info("Record channels set to: mono", 0);
+
     //if wav is selected as record output
     //then the audio/record channel are always the same
-    if(fl_g->radio_rec_codec_wav->value())
+    if(fl_g->radio_rec_codec_wav->value() && cfg.audio.channel != 1)
     {
         fl_g->radio_cfg_channel_mono->setonly();
         radio_cfg_channel_mono_cb();
     }
-
-#if HAVE_LIBLAME
-    if(fl_g->radio_rec_codec_mp3->value())
-        lame_enc_reinit(&lame_rec);
-#endif
-#if HAVE_LIBVORBIS
-    if(fl_g->radio_rec_codec_ogg->value())
-        vorbis_enc_reinit(&vorbis_rec);
-#endif
-
-    print_info("Set record channels to: mono", 0);
 
     unsaved_changes = 1;
 }
@@ -1384,10 +1648,10 @@ void button_add_srv_cancel_cb()
 {
     fl_g->input_add_srv_name->value("");
     fl_g->input_add_srv_addr->value("");
-    fl_g->input_add_srv_user->value("");
     fl_g->input_add_srv_port->value("");
     fl_g->input_add_srv_pwd->value("");
     fl_g->input_add_srv_mount->value("");
+    fl_g->input_add_srv_usr->value("");
 
     fl_g->window_add_srv->hide();
 }
@@ -1400,6 +1664,32 @@ void button_add_icy_add_cb()
     {
         fl_alert("No name specified");
         return;
+    }
+
+    if(cfg.main.icy_ent != NULL)
+    {
+        if(strlen(fl_g->input_add_icy_name->value()) + strlen(cfg.main.icy_ent) > 1000)
+        {
+            fl_alert("The sum of characters of all your icy names exeeds 1000\n"
+                    "Please reduce the count of characters of each icy name");
+            return;
+        }
+    }
+    if(strpbrk(fl_g->input_add_icy_name->value(), ";\\/\n\r") != NULL)
+    {
+        fl_alert("No newline characters and ;/\\ are allowed in the name field");
+        return;
+    }
+
+    
+    //check if the name already exists
+    for(i = 0; i < cfg.main.num_of_icy; i++)
+    {
+        if(!strcmp(fl_g->input_add_icy_name->value(), cfg.icy[i]->name))
+        {
+            fl_alert("Server name already exist!");
+            return;
+        }
     }
 
     i = cfg.main.num_of_icy;
@@ -1445,13 +1735,9 @@ void button_add_icy_add_cb()
         sprintf(cfg.main.icy_ent, "%s", cfg.icy[i]->name);
     }
 
-    if(cfg.main.icy == NULL)
-        cfg.main.icy = (char*)malloc(strlen(cfg.icy[cfg.selected_icy]->name)+1);
-    else
-        cfg.main.icy = (char*)realloc(cfg.main.icy,
-                strlen(cfg.icy[cfg.selected_icy]->name)+1);
+    cfg.main.icy = (char*)realloc(cfg.main.icy, strlen(cfg.icy[i]->name)+1);
 
-    strcpy(cfg.main.icy, cfg.icy[cfg.selected_icy]->name);
+    strcpy(cfg.main.icy, cfg.icy[i]->name);
 
     fl_g->input_add_icy_name->value("");
     fl_g->input_add_icy_desc->value("");
@@ -1464,7 +1750,15 @@ void button_add_icy_add_cb()
 
     fl_g->window_add_icy->hide();
 
-    fill_cfg_widgets();
+    fl_g->choice_cfg_act_icy->add(cfg.icy[i]->name);
+    fl_g->choice_cfg_act_icy->redraw();
+
+    fl_g->button_cfg_edit_icy->activate();
+    fl_g->button_cfg_del_icy->activate();
+    
+    // make added icy data the active icy entry
+    fl_g->choice_cfg_act_icy->value(i);
+    choice_cfg_act_icy_cb();
 
     unsaved_changes = 1;
 }
@@ -1525,45 +1819,39 @@ void choice_cfg_dev_cb()
 
 void radio_cfg_codec_mp3_cb()
 {
-#if HAVE_LIBLAME
     if(lame_enc_reinit(&lame_stream) != 0)
     {
-        print_info("Lame doesn't support current"
+        print_info("Lame doesn't support current\n"
                    "Sample-/Bitrate combination", 1);
 
-//        fl_g->radio_cfg_codec_ogg->value(0);
         fl_g->radio_cfg_codec_mp3->setonly();
         return;
     }
     strcpy(cfg.audio.codec, "mp3");
-    print_info("Set stream format to: mp3", 0);
+    print_info("Stream format set to: mp3", 0);
     unsaved_changes = 1;
-#endif
 }
 
 void radio_cfg_codec_ogg_cb()
 {
-#ifdef HAVE_LIBVORBIS
     if(vorbis_enc_reinit(&vorbis_stream) != 0)
     {
-        print_info("Vorbis doesn't support current"
+        print_info("Vorbis doesn't support current\n"
                    "Sample-/Bitrate combination", 1);
 
         fl_g->radio_cfg_codec_mp3->setonly();
         return;
     }
     strcpy(cfg.audio.codec, "ogg");
-    print_info("Set stream format to: ogg", 0);
+    print_info("Stream format set to: ogg", 0);
     unsaved_changes = 1;
-#endif
 }
 
 void radio_rec_codec_mp3_cb()
 {
-#if HAVE_LIBLAME
     if(lame_enc_reinit(&lame_rec) != 0)
     {
-        print_info("Lame doesn't support current"
+        print_info("Lame doesn't support current\n"
                    "Sample-/Bitrate combination", 1);
 
         //fall back to old rec codec
@@ -1574,23 +1862,23 @@ void radio_rec_codec_mp3_cb()
         return;
     }
     strcpy(cfg.rec.codec, "mp3");
-    print_info("Set record format to: mp3", 0);
-    fl_g->choice_rec_bitrate->activate();
-
+    
     //check if the extension of the filename matches 
     //the current selected codec
     test_file_extension();
 
+    print_info("Record format set to: mp3", 0);
+    fl_g->choice_rec_bitrate->activate();
+    
+
     unsaved_changes = 1;
-#endif
 }
 
 void radio_rec_codec_ogg_cb()
 {
-#ifdef HAVE_LIBVORBIS
     if(vorbis_enc_reinit(&vorbis_rec) != 0)
     {
-        print_info("Vorbis doesn't support current"
+        print_info("Vorbis doesn't support current\n"
                    "Sample-/Bitrate combination", 1);
 
         //fall back to old rec codec
@@ -1601,30 +1889,38 @@ void radio_rec_codec_ogg_cb()
         return;
     }
     strcpy(cfg.rec.codec, "ogg");
-    print_info("Set record format to: ogg", 0);
-    fl_g->choice_rec_bitrate->activate();
 
     //check if the extension of the filename matches 
     //the current selected codec
     test_file_extension();
 
+    print_info("Record format set to: ogg", 0);
+    fl_g->choice_rec_bitrate->activate();
+
     unsaved_changes = 1;
-#endif
 }
 
 void radio_rec_codec_wav_cb()
 {
-    int card_sr = fl_g->choice_cfg_samplerate->value();
-    fl_g->choice_rec_samplerate->value(card_sr);
+    int audio_sr = fl_g->choice_cfg_samplerate->value();
 
+ 
     fl_g->choice_rec_bitrate->deactivate();
 
     strcpy(cfg.rec.codec, "wav");
-    print_info("Set record format to: wav", 0);
 
     //check if the extension of the filename matches 
     //the current selected codec
     test_file_extension();
+
+    print_info("Record format set to: wav", 0);
+    
+    // match audio sample rate and record sample rate
+    if (audio_sr != fl_g->choice_rec_samplerate->value())
+    {
+      fl_g->choice_rec_samplerate->value(audio_sr);
+      choice_rec_samplerate_cb();
+    }
 
     unsaved_changes = 1;
 }
@@ -1703,49 +1999,61 @@ void ILM216_cb()
 
 void button_rec_browse_cb()
 {
-    Fl_Native_File_Chooser nfc;
+    Fl_My_Native_File_Chooser nfc;
     nfc.title("Record to...");
-    nfc.type(Fl_Native_File_Chooser::BROWSE_SAVE_DIRECTORY);
+    nfc.type(Fl_My_Native_File_Chooser::BROWSE_DIRECTORY);
+    nfc.options(Fl_My_Native_File_Chooser::NEW_FOLDER);
+
+    char *bla = strdup(fl_g->input_rec_folder->value());
+    bla[strlen(bla)-1] = '\0';
+    nfc.directory(fl_g->input_rec_folder->value());
+        
     switch(nfc.show())
     {
-        case -1: fl_alert("ERROR: %s", nfc.errmsg());
+        case -1: fl_alert("ERROR: %s", nfc.errmsg()); //error
                  break;
         case  1: break; //cancel
         default:
                  fl_g->input_rec_folder->value(nfc.filename());
                  input_rec_folder_cb();
+                 unsaved_changes = 1;
+                 break;
     }
-    unsaved_changes = 1;
 }
 
 void input_rec_filename_cb()
 {
+    char *tooltip;
 
     cfg.rec.filename = (char*)realloc(cfg.rec.filename,
                        strlen(fl_g->input_rec_filename->value())+1);
 
     strcpy(cfg.rec.filename, fl_g->input_rec_filename->value());
-    fl_g->input_rec_filename->tooltip(cfg.rec.filename);
+    tooltip = strdup(cfg.rec.filename);
+
+    expand_string(&tooltip);
+
+    fl_g->input_rec_filename->copy_tooltip(tooltip);
 
     //check if the extension of the filename matches 
     //the current selected codec
     test_file_extension();
 
-
     unsaved_changes = 1;
+    free(tooltip);
 }
 
 void input_rec_folder_cb()
 {
-    char *p;
     int len = strlen(fl_g->input_rec_folder->value());
 
     cfg.rec.folder = (char*)realloc(cfg.rec.folder, len +2);
 
     strcpy(cfg.rec.folder, fl_g->input_rec_folder->value());
-    p = cfg.rec.folder;
 
 #ifdef _WIN32    //Replace all "Windows slashes" with "unix slashes"
+    char *p;
+    p = cfg.rec.folder;
     while(*p != '\0')
     {
         if(*p == '\\')
@@ -1766,9 +2074,9 @@ void input_rec_folder_cb()
 
 void button_cfg_browse_songfile_cb()
 {
-    Fl_Native_File_Chooser nfc;
+    Fl_My_Native_File_Chooser nfc;
     nfc.title("Select Songfile");
-    nfc.type(Fl_Native_File_Chooser::BROWSE_SAVE_FILE);
+    nfc.type(Fl_My_Native_File_Chooser::BROWSE_FILE);
     switch(nfc.show())
     {
         case -1: fl_alert("ERROR: %s", nfc.errmsg());
@@ -1784,15 +2092,15 @@ void button_cfg_browse_songfile_cb()
 
 void input_cfg_song_file_cb()
 {
-    char *p;
     int len = strlen(fl_g->input_cfg_song_file->value());
 
     cfg.main.song_path = (char*)realloc(cfg.main.song_path, len +1);
 
     strcpy(cfg.main.song_path, fl_g->input_cfg_song_file->value());
-    p = cfg.main.song_path;
 
 #ifdef _WIN32    //Replace all "Windows slashes" with "unix slashes"
+    char *p;
+    p = cfg.main.song_path;
     while(*p != '\0')
     {
         if(*p == '\\')
@@ -1923,3 +2231,97 @@ void check_song_update_active_cb()
    unsaved_changes = 1;
 }
 
+void slider_gain_cb()
+{
+    float gain_db;
+
+    //Without redrawing the main window the slider knob is not redrawn
+    fl_g->window_main->redraw();
+
+    gain_db = (float)fl_g->slider_gain->value();
+
+    if((int)gain_db == 0)
+        cfg.main.gain = 1;
+    else
+        cfg.main.gain = util_db_to_factor(gain_db);
+
+    gain_db = (float)fl_g->slider_gain->value();
+    fl_g->slider_gain->value_cb2();
+
+    unsaved_changes = 1;
+}
+
+void input_rec_split_time_cb()
+{
+    // Values < 0 are not allowed
+    if (fl_g->input_rec_split_time->value() < 0)
+    {
+        fl_g->input_rec_split_time->value(0);
+        return;
+    }
+
+    cfg.rec.split_time = fl_g->input_rec_split_time->value();
+    
+    unsaved_changes = 1;
+}
+
+void button_cfg_export_cb()
+{
+    char *filename;
+
+    Fl_My_Native_File_Chooser nfc;
+    nfc.title("Export to...");
+    nfc.type(Fl_My_Native_File_Chooser::BROWSE_SAVE_FILE);
+    nfc.options(Fl_My_Native_File_Chooser::NEW_FOLDER);
+
+        
+    switch(nfc.show())
+    {
+        case -1: fl_alert("ERROR: %s", nfc.errmsg()); //error
+                 return;
+                 break;
+        case  1: return; // cancel
+                 break; 
+        default: filename = (char*)nfc.filename();
+    }
+
+    cfg_write_file(filename);
+
+}
+void button_cfg_import_cb()
+{
+    char *filename;
+    char info_buf[256];
+
+    Fl_My_Native_File_Chooser nfc;
+    nfc.title("Import...");
+    nfc.type(Fl_My_Native_File_Chooser::BROWSE_FILE);
+
+    switch(nfc.show())
+    {
+        case -1: fl_alert("ERROR: %s", nfc.errmsg()); //error
+                 return;
+                 break;
+        case  1: return; // cancel
+                 break; 
+        default: filename = (char*)nfc.filename();
+                 break;
+    }
+
+    //read config and initialize config struct
+    if(cfg_set_values(filename) != 0)     
+    {
+        snprintf(info_buf, sizeof(info_buf), "Could not import config %s", filename);
+        print_info(info_buf, 1);
+        return;
+    }
+
+    //re-initialize some stuff after config has been successfully imported
+    init_main_gui_and_audio();
+    fill_cfg_widgets();
+    snd_reinit();
+
+    snprintf(info_buf, sizeof(info_buf), "Config imported %s", filename);
+    print_info(info_buf, 1);
+
+}

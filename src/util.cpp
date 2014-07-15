@@ -14,6 +14,7 @@
 //
 
 #include <string.h>
+#include <math.h>
 #include <stdlib.h>
 
 #include "util.h"
@@ -67,7 +68,7 @@ char *util_base64_enc(char *data)
 
 char *util_get_file_extension(char *filename)
 {
-    char *ext;
+    static char *ext;
     //find the last occurence of '.' in the filename
     ext = strrchr(filename, (int)'.');
 
@@ -77,4 +78,14 @@ char *util_get_file_extension(char *filename)
         return NULL;
     else
         return ++ext;
+}
+
+float util_factor_to_db(float factor)
+{
+    return 20 * log10(factor);
+}
+
+float util_db_to_factor(float dB)
+{
+    return pow(10, dB/20);
 }

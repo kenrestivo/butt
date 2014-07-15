@@ -18,5 +18,7 @@
 
 char *util_base64_enc(char *data);
 char *util_get_file_extension(char *filename);
+float util_factor_to_db(float factor);
+float util_db_to_factor(float dB);
 
 #endif

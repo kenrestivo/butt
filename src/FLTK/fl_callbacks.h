@@ -42,6 +42,8 @@ void choice_cfg_samplerate_cb();
 void button_cfg_song_go_cb();
 void radio_cfg_codec_mp3_cb();
 void radio_cfg_codec_ogg_cb();
+void button_cfg_export_cb();
+void button_cfg_import_cb();
 void button_add_icy_save_cb();
 void button_add_srv_cancel_cb();
 void button_add_icy_cancel_cb();
@@ -53,6 +55,9 @@ void input_cfg_song_cb();
 
 void button_add_srv_add_cb();
 void button_add_srv_save_cb();
+void button_add_srv_show_pwd_cb();
+void radio_add_srv_shoutcast_cb();
+void radio_add_srv_icecast_cb();
 
 void button_rec_browse_cb();
 void choice_rec_bitrate_cb();
@@ -68,11 +73,14 @@ void check_song_update_active_cb();
 
 void input_rec_filename_cb();
 void input_rec_folder_cb();
+void input_rec_split_time_cb();
 
 void check_gui_attach_cb();
 void check_gui_ontop_cb();
 void button_gui_bg_color_cb();
 void button_gui_text_color_cb();
+
+void slider_gain_cb();
 
 void check_cfg_rec_cb();
 void check_cfg_connect_cb();

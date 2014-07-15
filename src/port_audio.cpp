@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <math.h>
 
 #include <string.h>
 #include <pthread.h>
@@ -24,6 +25,8 @@
 #ifdef _WIN32
  #include <windows.h>
 #endif
+
+#include "config.h"
 
 #include "butt.h"
 #include "cfg.h"
@@ -35,8 +38,8 @@
 #include "strfuncs.h"
 #include "wav_header.h"
 #include "ringbuffer.h"
-
-#include "config.h"
+#include "vu_meter.h"
+#include "flgui.h"
 
 #define PA_FRAMES 2048
 
@@ -50,6 +53,9 @@ int framepacket_size;
 bool try_to_connect;
 bool pa_new_frames;
 bool reconnect;
+
+bool next_file;
+FILE *next_fd;
 
 struct ringbuf rec_rb;
 struct ringbuf stream_rb;
@@ -185,8 +191,9 @@ void snd_start_stream()
     pthread_mutex_init(&stream_mut, NULL);
     pthread_cond_init (&stream_cond, NULL);
     
-    bytes_sent = 0;
+    kbytes_sent = 0;
     streaming = 1;
+
     pthread_create(&stream_thread, NULL, snd_stream_thread, NULL);
 }
 
@@ -224,6 +231,7 @@ void *snd_stream_thread(void *data)
 
     while(connected)
     {
+
         pthread_cond_wait(&stream_cond, &stream_mut);
         if(!connected)
             break;
@@ -232,20 +240,20 @@ void *snd_stream_thread(void *data)
 		if(rb_read_bytes == 0)
 			continue;
 
-#if HAVE_LIBLAME
+		
+
         if(!strcmp(cfg.audio.codec, "mp3"))
             encode_bytes_read = lame_enc_encode(&lame_stream, (short int*)audio_buf, enc_buf,
                                 rb_read_bytes/(2*cfg.audio.channel), stream_rb.size*10);
-#endif
-#if HAVE_LIBVORBIS
         if(!strcmp(cfg.audio.codec, "ogg"))
             encode_bytes_read = vorbis_enc_encode(&vorbis_stream, (short int*)audio_buf, 
                     enc_buf, rb_read_bytes/(2*cfg.audio.channel));
-#endif
+
         if((sent = xc_send(enc_buf, encode_bytes_read)) == -1)
             connected = 0; 
         else
-            bytes_sent += encode_bytes_read;
+            kbytes_sent += encode_bytes_read/1024.0;
+
     }
 
     free(enc_buf);
@@ -256,10 +264,11 @@ void *snd_stream_thread(void *data)
 
 void snd_start_rec()
 {
+    next_file = 0;
     pthread_mutex_init(&rec_mut, NULL);
     pthread_cond_init (&rec_cond, NULL);
 
-    bytes_written = 0;
+    kbytes_written = 0;
     recording = 1;
 
     pthread_create(&rec_thread, NULL, snd_rec_thread, NULL);
@@ -282,7 +291,7 @@ void snd_stop_rec()
 }
 
 //The recording stuff runs in its own thread
-//this prevents dropouts in the recording, in case the
+//this prevents dropouts in the recording in case the
 //bandwidth is smaller than the selected streaming bitrate
 void* snd_rec_thread(void *data)
 {
@@ -302,17 +311,26 @@ void* snd_rec_thread(void *data)
 		if(rb_read_bytes == 0)
 			continue;
 
-#if HAVE_LIBLAME
+        if(next_file == 1)
+        {
+            fclose(cfg.rec.fd);
+            cfg.rec.fd = next_fd;
+            next_file = 0;
+            if(!strcmp(cfg.rec.codec, "ogg"))
+            {
+                vorbis_enc_reinit(&vorbis_rec);
+                ogg_header_written = 0;
+            }
+        }
+
         if(!strcmp(cfg.rec.codec, "mp3"))
         {
 
             enc_bytes_read = lame_enc_encode(&lame_rec, (short int*)audio_buf, enc_buf,
-                                rb_read_bytes/(2*cfg.rec.channel), rec_rb.size*10);
-            bytes_written += fwrite(enc_buf, 1, enc_bytes_read, cfg.rec.fd);
+                                rb_read_bytes/(2*cfg.audio.channel), rec_rb.size*10);
+            kbytes_written += fwrite(enc_buf, 1, enc_bytes_read, cfg.rec.fd)/1024.0;
         }
-#endif
-#if HAVE_LIBVORBIS
-        if (!strcmp(cfg.rec.codec, "ogg"))
+        if(!strcmp(cfg.rec.codec, "ogg"))
         {
             if(!ogg_header_written)
             {
@@ -321,18 +339,17 @@ void* snd_rec_thread(void *data)
             }
 
             enc_bytes_read = vorbis_enc_encode(&vorbis_rec, (short int*)audio_buf, 
-                    enc_buf, rb_read_bytes/(2*cfg.rec.channel));
-            bytes_written += fwrite(enc_buf, 1, enc_bytes_read, cfg.rec.fd);
+                    enc_buf, rb_read_bytes/(2*cfg.audio.channel));
+            kbytes_written += fwrite(enc_buf, 1, enc_bytes_read, cfg.rec.fd)/1024.0;
         }
-#endif
-        if (!strcmp(cfg.rec.codec, "wav"))
+        if(!strcmp(cfg.rec.codec, "wav"))
         {
             //this permanently updates the filesize value in the WAV header
             //so we still have a valid WAV file in case of a crash
             wav_write_header(cfg.rec.fd, cfg.audio.channel,
                     cfg.audio.samplerate, /*bps*/ 16);
             
-            bytes_written += fwrite(audio_buf, sizeof(char), rb_read_bytes, cfg.rec.fd); 
+            kbytes_written += fwrite(audio_buf, sizeof(char), rb_read_bytes, cfg.rec.fd)/1024.0; 
         }
     }
 
@@ -350,21 +367,32 @@ int snd_callback(const void *input,
                  PaStreamCallbackFlags statusFlags,
                  void *userData)
 {
-    memcpy(pa_pcm_buf, input, framepacket_size*sizeof(short));
-	
-    //tell vu_update() that there is new audio data
-    pa_new_frames = 1;
+    int i;
 
+    memcpy(pa_pcm_buf, input, framepacket_size*sizeof(short));
+
+    if (cfg.main.gain != 1)
+    {
+        for(i = 0; i < framepacket_size; i++)
+        {
+            pa_pcm_buf[i] *= cfg.main.gain;
+        }
+    }
+	
 	if(streaming)
 	{
-		rb_write(&stream_rb, (char*)input, framepacket_size*sizeof(short));
+		rb_write(&stream_rb, (char*)pa_pcm_buf, framepacket_size*sizeof(short));
 		pthread_cond_signal(&stream_cond);
 	}
 	if(recording)
 	{
-		rb_write(&rec_rb, (char*)input, framepacket_size*sizeof(short));
+		rb_write(&rec_rb, (char*)pa_pcm_buf, framepacket_size*sizeof(short));
 		pthread_cond_signal(&rec_cond);
 	}
+    
+    //tell vu_update() that there is new audio data
+    pa_new_frames = 1;
+
 
     return 0;
 }
@@ -379,10 +407,10 @@ void snd_update_vu()
     p = pa_pcm_buf;
     for(i = 0; i < framepacket_size; i += cfg.audio.channel)
     {
-        if(p[i] > lpeak)
-            lpeak = p[i];
-        if(p[i+(cfg.audio.channel-1)] > rpeak)
-            rpeak = p[i+(cfg.audio.channel-1)];
+        if(abs(p[i]) > lpeak)
+            lpeak = abs(p[i]);
+        if(abs(p[i+(cfg.audio.channel-1)]) > rpeak)
+            rpeak = abs(p[i+(cfg.audio.channel-1)]);
     }
 
     vu_meter(lpeak, rpeak);
@@ -476,7 +504,7 @@ snd_dev_t **snd_get_devices(int *dev_count)
 
         //We need to escape every '/' in the device name
         //otherwise FLTK will add a submenu for every '/' in the dev list
-        strrpl(&dev_list[dev_num]->name, "/", "\\/");
+        strrpl(&dev_list[dev_num]->name, (char*)"/", (char*)"\\/");
 
         dev_num++;
     }//for(i = 0; i < devcount && i < 100; i++)

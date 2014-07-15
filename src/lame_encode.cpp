@@ -18,7 +18,7 @@
 
 #include "lame_encode.h"
 
-#include "config.h"
+#include "flgui.h"
 
 
 int lame_enc_init(lame_enc *lame)
@@ -49,8 +49,12 @@ int lame_enc_init(lame_enc *lame)
 
 int lame_enc_reinit(lame_enc *lame)
 {
-    lame_enc_close(lame);
-    return lame_enc_init(lame);
+    if(lame != NULL)
+    {
+        lame_enc_close(lame);
+        return lame_enc_init(lame);
+    }
+    return 1;
 }
 
 void lame_enc_close(lame_enc *lame)
@@ -71,10 +75,11 @@ int lame_enc_encode(lame_enc *lame, short *pcm_buf, char *enc_buf, int samples, 
 
     lame->state = LAME_BUSY;
 
-    if(lame->channel == 2)
+    if(cfg.audio.channel == 2)
         rc = lame_encode_buffer_interleaved(lame->gfp, pcm_buf, samples, (unsigned char*)enc_buf, size);
     else
         rc = lame_encode_buffer(lame->gfp, pcm_buf, pcm_buf, samples, (unsigned char*)enc_buf, size);
+
 
     lame->state = LAME_READY;
 

@@ -41,11 +41,11 @@
 #include "butt.h"
 #include "flgui.h"
 
-#include "xpm/rec.xpm" //rec_xpm
-#include "xpm/rec_dark.xpm" //rec_xpm
-#include "xpm/rec_armed.xpm" //rec_xpm
-#include "xpm/conn.xpm" //conn_xpm
-#include "xpm/conn_dark.xpm" //conn_xpm
+#include "../xpm/rec.xpm" //rec_xpm
+#include "../xpm/rec_dark.xpm" //rec_xpm
+#include "../xpm/rec_armed.xpm" //rec_xpm
+#include "../xpm/conn.xpm" //conn_xpm
+#include "../xpm/conn_dark.xpm" //conn_xpm
 
 
 //

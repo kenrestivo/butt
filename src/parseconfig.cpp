@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <FL/fl_utf8.h> // for fl_fl_fopen()
+
 #include "parseconfig.h"
 
 struct CFG_ENTRIES {
@@ -111,24 +113,24 @@ int
 cfg_parse_file(const char *filename)
 {
     struct CFG_ENTRIES *e = NULL;
-    char line[256],tag[64],value[192];
+    char line[1024],tag[64],value[1021];
     FILE *fp;
     int nr;
 
     if (NULL == c)
         c = cfg_init_sections();
-    if (NULL == (fp = fopen(filename,"r")))
+    if (NULL == (fp = fl_fopen(filename,"rb")))
         return -1;
 
     nr = 0;
-    while (NULL != fgets(line,255,fp)) {
+    while (NULL != fgets(line,1023,fp)) {
         nr++;
         if (line[0] == '\n' || line[0] == '#' || line[0] == '%' || line[0] ==';')
             continue;
-        if (1 == sscanf(line,"[%99[^]]]",value)) {
+        if (1 == sscanf(line,"[%1020[^]]]",value)) {
             /* section */
             e = cfg_find_section(c,value);
-        } else if (2 == sscanf(line," %63[^= ] = %191[^\n]",tag,value)) {
+        } else if (2 == sscanf(line," %63[^= ] = %1020[^\n]",tag,value)) {
             /* foo = bar */
             if (NULL == e) {
                 fprintf(stderr,"%s:%d: error: no section\n",filename,nr);

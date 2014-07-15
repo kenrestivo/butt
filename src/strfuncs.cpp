@@ -17,6 +17,57 @@
 #include <stdlib.h>
 #include <string.h>
 
+int strinsrt(char **dest, char *insert, char *pos)
+{
+    char *pre;
+    char *post;
+    char *temp;
+    int pre_len;
+    int post_len;
+    int new_len;
+
+    new_len = strlen(*dest) + strlen(insert);
+    pre_len = strlen(*dest) - strlen(pos);
+    post_len = strlen(pos);
+
+    pre = (char*)malloc(pre_len*sizeof(char) +1);
+    post = (char*)malloc(post_len*sizeof(char) +1);
+    temp = (char*)malloc(new_len*sizeof(char) +1);
+
+    memcpy(pre, *dest, pre_len);
+    pre[pre_len] = '\0';
+
+    memcpy(post, *dest+pre_len, post_len);
+    post[post_len] = '\0';
+
+    sprintf(temp, "%s%s%s", pre, insert, post);
+
+    *dest = (char*)realloc(*dest, new_len*sizeof(char) +1);
+    strcpy(*dest, temp);
+    
+    return 0;
+}
+
+//returns a pointer to the last occurance of string needle in string haystack
+char *strrstr(char *haystack, char *needle)
+{
+    char *last;
+    char *found = NULL;
+
+    do 
+    {
+        last = found;
+        found = strstr(haystack, needle);
+
+        if(found != NULL)
+            haystack = found+strlen(needle);
+
+    }while(found != NULL);
+
+    return last;
+}
+
+//replaces all strings named by search with strings named by replace in dest
 int strrpl(char **dest, char *search, char *replace)
 {
     char *loc;

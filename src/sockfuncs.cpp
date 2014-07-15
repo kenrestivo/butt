@@ -20,7 +20,7 @@
 
 #ifdef _WIN32
  #include <winsock2.h>
- #define errno WSAGetLastError()
+// #define errno WSAGetLastError()
  #define EWOULDBLOCK WSAEWOULDBLOCK
 #else
  #include <sys/types.h>
@@ -39,7 +39,7 @@
 #endif
 
 
-int sock_connect(char *addr, short port, int msec)
+int sock_connect(const char *addr, short port, int msec)
 {
 
     int sock;
@@ -112,7 +112,7 @@ int sock_setbufsize(int *s, int send_size, int recv_size)
     return 0;
 }
 
-int sock_send(int *s, char *buf, int len, int msec)
+int sock_send(int *s, const char *buf, int len, int msec)
 {
     int rc;
     int sent = 0;

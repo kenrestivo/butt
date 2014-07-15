@@ -34,6 +34,8 @@ typedef struct
 extern bool try_to_connect;
 extern bool pa_new_frames;
 extern bool reconnect;
+extern bool next_file;
+extern FILE *next_fd;
 
 int *snd_get_samplerates(int *sr_count);
 snd_dev_t **snd_get_devices(int *dev_count);

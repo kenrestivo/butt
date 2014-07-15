@@ -16,6 +16,13 @@
 #ifndef STRFUNCS_H
 #define STRFUNCS_H
 
-int strrpl(char **dest, char *search, char *replace); //replaces all strings "replace" with
-                                                       //"search" in "dest"
+//replaces all strings "replace" with "search" in "dest"
+int strrpl(char **dest, char *search, char *replace); 
+
+//inserts string "insert" at position "pos"
+int strinsrt(char **dest, char *insert, char *pos); 
+
+// finds last occurrence of substring "needle" in string "haystack"
+char *strrstr(char *haystack, char *needle);
+
 #endif

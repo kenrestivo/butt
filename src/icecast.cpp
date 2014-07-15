@@ -31,6 +31,7 @@
 
 #include <errno.h>
 
+#include "config.h"
 #include "cfg.h"
 #include "butt.h"
 #include "util.h"
@@ -40,16 +41,16 @@
 #include "sockfuncs.h"
 #include "parseconfig.h"
 
-#include "config.h"
+#include "flgui.h"
 
 int ic_connect()
 {
     int ret;
+    int retval;
     char auth[150];
     char b64_auth[200];
     char recv_buf[250];
     char send_buf[250];
-    char user[] = "source";
     char *http_retval;
 
     stream_socket = sock_connect(cfg.srv[cfg.selected_srv]->addr,
@@ -93,15 +94,12 @@ int ic_connect()
 
     sock_send(&stream_socket, send_buf, strlen(send_buf), SEND_TIMEOUT);
 
-    snprintf(auth, sizeof(auth), "%s:%s", cfg.srv[cfg.selected_srv]->user, cfg.srv[cfg.selected_srv]->pwd);
-    snprintf(b64_auth, sizeof(b64_auth), util_base64_enc(auth));
+    snprintf(auth, sizeof(auth), "%s:%s", cfg.srv[cfg.selected_srv]->usr, cfg.srv[cfg.selected_srv]->pwd);
+    snprintf(b64_auth, sizeof(b64_auth), "%s", util_base64_enc(auth));
     snprintf(send_buf, sizeof(send_buf), "Authorization: Basic %s\r\n", b64_auth);
     sock_send(&stream_socket, send_buf, strlen(send_buf), SEND_TIMEOUT);
 
-    snprintf(send_buf, sizeof(send_buf), "User-Agent: %s\r\n", VERSION);
-    sock_send(&stream_socket, send_buf, strlen(send_buf), SEND_TIMEOUT);
-
-    snprintf(send_buf, sizeof(send_buf), "User-Agent: %s\r\n", VERSION);
+    snprintf(send_buf, sizeof(send_buf), "User-Agent: %s\r\n", PACKAGE_STRING);
     sock_send(&stream_socket, send_buf, strlen(send_buf), SEND_TIMEOUT);
 
     if(!strcmp(cfg.audio.codec, "mp3"))
@@ -122,30 +120,34 @@ int ic_connect()
         snprintf(send_buf, sizeof(send_buf), "ice-public: %s\r\n", cfg.icy[cfg.selected_icy]->pub);
     else
         strcpy(send_buf, "ice-public: 0\r\n");
-
     sock_send(&stream_socket, send_buf, strlen(send_buf), SEND_TIMEOUT);
 
     if(cfg.main.num_of_icy > 0)
     {
         snprintf(send_buf, sizeof(send_buf), "ice-url: %s\r\n", cfg.icy[cfg.selected_icy]->url);
         sock_send(&stream_socket, send_buf, strlen(send_buf), SEND_TIMEOUT);
-    }
 
-    if(cfg.main.num_of_icy > 0)
-    {
         snprintf(send_buf, sizeof(send_buf), "ice-genre: %s\r\n", cfg.icy[cfg.selected_icy]->genre);
         sock_send(&stream_socket, send_buf, strlen(send_buf), SEND_TIMEOUT);
-    }
 
-    if(cfg.main.num_of_icy > 0)
-    {
         snprintf(send_buf, sizeof(send_buf), "ice-description: %s\r\n", cfg.icy[cfg.selected_icy]->desc);
         sock_send(&stream_socket, send_buf, strlen(send_buf), SEND_TIMEOUT);
     }
 
+    
+    // Send audio settings 
+    snprintf(send_buf, sizeof(send_buf), 
+            "ice-audio-info: "
+            "ice-bitrate=%d;"
+            "ice-channels=%d;"
+            "ice-samplerate=%d"
+            "\r\n",
+            cfg.audio.bitrate,
+            cfg.audio.channel,
+            cfg.audio.samplerate);
+    sock_send(&stream_socket, send_buf, strlen(send_buf), SEND_TIMEOUT);
 
     sock_send(&stream_socket, "\r\n", 2, SEND_TIMEOUT);
-
 
     if(sock_recv(&stream_socket, recv_buf, sizeof(recv_buf)-1, RECV_TIMEOUT) == 0)
     {
@@ -168,16 +170,26 @@ int ic_connect()
     http_retval++;
     http_retval[3] = '\0';
 
-    switch(atoi(http_retval)) 
+    retval = atoi(http_retval);
+    if((retval = atoi(http_retval)) != 200)
     {
-        case 401:
-            print_info("\nconnect: invalid password!\n", 1);
-            ic_disconnect();
-            return 2;
-        case 403:   //mountpoint already in use
-            usleep(100000); 
-            ic_disconnect();
-            return 1;
+        switch(retval)
+        {
+            case 401:
+                print_info("\nconnect: invalid user/password!\n", 1);
+                ic_disconnect();
+                return 2;
+                break;
+            case 403:   //mountpoint already in use
+                usleep(100000); 
+                ic_disconnect();
+                return 1;
+                break;
+            default:
+                usleep(100000); 
+                ic_disconnect();
+                return 1;
+        }
     }
 
 
@@ -236,8 +248,8 @@ int ic_update_song()
 
     song_buf = strdup(cfg.main.song);
 
-    strrpl(&song_buf, " ", "%20");
-    strrpl(&song_buf, "&", "%26");
+    strrpl(&song_buf, (char*)" ", (char*)"%20");
+    strrpl(&song_buf, (char*)"&", (char*)"%26");
 
     mount = (char*)malloc(strlen(cfg.srv[cfg.selected_srv]->mount)+2);
 
@@ -246,12 +258,12 @@ int ic_update_song()
     else
         strcpy(mount, cfg.srv[cfg.selected_srv]->mount);
 
-    snprintf(auth, sizeof(auth), "%s:%s", cfg.srv[cfg.selected_srv]->user, cfg.srv[cfg.selected_srv]->pwd);
+    snprintf(auth, sizeof(auth), "%s:%s", cfg.srv[cfg.selected_srv]->usr, cfg.srv[cfg.selected_srv]->pwd);
 
     snprintf(send_buf, sizeof(send_buf), "GET /admin/metadata?mode=updinfo&mount=%s&song=%s "
                                          "HTTP/1.0\r\nUser-Agent: %s\r\n"
                                          "Authorization: Basic %s\r\n\r\n",
-                                         mount, song_buf, VERSION, util_base64_enc(auth));
+                                         mount, song_buf, PACKAGE_STRING, util_base64_enc(auth));
 
 
     ret = sock_send(&web_socket, send_buf, strlen(send_buf), SEND_TIMEOUT);

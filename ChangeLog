@@ -1,11 +1,35 @@
-Version 0.1.13 (2014-???)
-* support adding users other than "source" for streaming to Liquidsoap http harbors and/or Airtime
+Version 0.1.13 (2014-05-02)
+==========
+* has an icon now! - Thanks to Subrat (ipapuna) Nayak
+* added support for lower bitrates (24k, 16k, 8k)
+* added support for user defined configuration path e.g. "butt -c <path_to_config>"
+* added support for user names in Icecast
+* added gain slider. This slider multiplies the audio input samples with the given factor
+* added .manifest file to disable the VirtualStore on Windows Vista and higher
+* added the ability to automatically split the recording every 'n' minutes
+* added feature for importing and exporting configuration files
+* compiles with Xcode 5 on OS X Mavericks
+* compiles with traditional GNU autoconf/automake environment on linux and mingw
+* improved robustness against faulty config files 
+* improved compatibility to ShoutCast v2 servers
+* improved look&feel
+* fixed samplerate issues
+* fixed mono playback/recording 
+* changed data volume information vom kBytes to MBytes
+* changed default recording path to users home folder
+* sends audio information (bitrate etc.) to Icecast server - Thanks to Dominik Durner
+* reimplemented VU-Meter with peak hold 
+* comes with as an ubuntu package
+* windows: can be installed as user without admin rights 
+* windows: uninstallation process also removes the configuration file
+* instead of canceling the automatic song update in case the given file is not
+readable, butt now tries to reread the file every 5 seconds
 
 Version 0.1.12 (2010-04-10)
 ==========
 * butt is now able to connect automatically after startup
 * shortened time between connect attempts (fixes Shouted.FM connection problems)
-* improved wrong password detection for shoutcast
+* improved wrong password detection for shoutcast	
 
 Version 0.1.11-2 (2008-12-14)
 ==========
@@ -22,7 +46,7 @@ Version 0.1.11 (2008-10-26)
 * removed buffer overrun messages
 * recording can be now stopped with the stop-button
 * replaced pcm recording by wav recording
-* recording as ogg is now possible
+* recording as ogg is now possible 
 * added "stay on top" checkbox
 * fixed possible crash when changing mp3 settings while streaming
 

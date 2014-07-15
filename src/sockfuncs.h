@@ -39,10 +39,10 @@ enum {
 };
 
 
-int sock_connect(char *addr, short port, int msec);
+int sock_connect(const char *addr, short port, int msec);
 int sock_setbufsize(int *s, int send_size, int recv_size);
 int sock_isdisconnected(int *s);
-int sock_send(int *s, char *buf, int len, int msec);
+int sock_send(int *s, const char *buf, int len, int msec);
 int sock_recv(int *s, char *buf, int len, int msec);
 int sock_select(int *s, int msec, int mode);
 int sock_nonblock(int *s);

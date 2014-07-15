@@ -17,6 +17,8 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include "config.h"
+#include "cfg.h"
 #include "vorbis_encode.h"
 
 int vorbis_enc_init(vorbis_enc *vorbis)
@@ -36,7 +38,7 @@ int vorbis_enc_init(vorbis_enc *vorbis)
         return ret;
 
     vorbis_comment_init(&(vorbis->vc));
-    vorbis_comment_add_tag(&(vorbis->vc), "ENCODER", VERSION);
+    vorbis_comment_add_tag(&(vorbis->vc), "ENCODER", PACKAGE_STRING);
 
     vorbis_analysis_init(&(vorbis->vd), &(vorbis->vi));
     vorbis_block_init(&(vorbis->vd), &(vorbis->vb));
@@ -64,8 +66,12 @@ void vorbis_enc_write_header(vorbis_enc *vorbis)
 
 int vorbis_enc_reinit(vorbis_enc *vorbis)
 {
-     vorbis_enc_close(vorbis);
-     return vorbis_enc_init(vorbis);
+    if(vorbis != NULL)
+    {
+        vorbis_enc_close(vorbis);
+        return vorbis_enc_init(vorbis);
+    }
+    return 1;
 }
 
 int vorbis_enc_encode(vorbis_enc *vorbis, short *pcm_buf, char *enc_buf, int size)
@@ -96,15 +102,41 @@ int vorbis_enc_encode(vorbis_enc *vorbis, short *pcm_buf, char *enc_buf, int siz
     vorbis_buf = vorbis_analysis_buffer(&(vorbis->vd), size);
 
     //deinterlace audio data and convert it from short to float
-    if(vorbis->channel == 1)
-         for(i = 0 ; i < size ; i++)
-             vorbis_buf[0][i] = pcm_buf[i]/32768.f;
-    else
-        for(i = 0 ; i < size; i++)
+    if((cfg.audio.channel == 2) && (vorbis->channel == 2))
+    {
+        for(i = 0; i < size; i++)
         {
             vorbis_buf[0][i] = pcm_buf[i*2]/32768.f;
             vorbis_buf[1][i] = pcm_buf[i*2+1]/32768.f;
         }
+    }
+    else if((cfg.audio.channel == 2) && (vorbis->channel == 1))
+    {
+         for(i = 0; i < size; i++)
+         {
+             //Convert stereo to mono by averaging both channels 
+             vorbis_buf[0][i] = 
+                 (pcm_buf[i*2]/32768.f/2) + 
+                 (pcm_buf[i*2+1]/32768.f/2);
+         }
+    }
+    else if((cfg.audio.channel == 1) && (vorbis->channel == 1))
+    {
+         for(i = 0; i < size; i++)
+         {
+             vorbis_buf[0][i] = pcm_buf[i]/32768.f; 
+         }
+    }
+    else //((cfg.audio.channel == 1) && (vorbis->channel == 2))
+    {
+         for(i = 0; i < size; i++)
+         {
+             //Convert mono to stereo by putting the 
+             //mono signal into each channel
+             vorbis_buf[0][i] = pcm_buf[i]/32768.f; 
+             vorbis_buf[1][i] = pcm_buf[i]/32768.f;
+         }
+    }
 
     vorbis_analysis_wrote(&(vorbis->vd), size);
 

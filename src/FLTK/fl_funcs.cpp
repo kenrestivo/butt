@@ -23,6 +23,9 @@
 #ifndef _WIN32
  #include <sys/wait.h>
 #endif
+
+#include "config.h"
+
 #include "cfg.h"
 #include "butt.h"
 #include "util.h"
@@ -32,39 +35,27 @@
 #include "fl_funcs.h"
 #include "shoutcast.h"
 #include "icecast.h"
+#include "strfuncs.h"
+
+
 
 
 void fill_cfg_widgets()
 {
     int i;
-    static bool sr_updated = 0;
 
-    int bitrate[] = { 32, 40, 48, 56, 64, 80, 96, 112,
-                      128, 160, 192, 224, 256, 320, 0 };
+    int bitrate[] = { 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112,
+                    128, 160, 192, 224, 256, 320, 0 };
 
-#ifndef HAVE_LIBVORBIS
-    fl_g->radio_cfg_codec_ogg->deactivate();
-    fl_g->radio_rec_codec_ogg->deactivate();
-#endif
-#ifndef HAVE_LIBLAME
-    fl_g->radio_cfg_codec_mp3->deactivate();
-    fl_g->radio_rec_codec_mp3->deactivate();
-    #ifndef HAVE_LIBVORBIS
-     #define NO_CODEC
-    #endif
-#endif //Any idea how to make this prettier?
-#ifdef NO_CODEC
-    fl_g->button_connect->deactivate();
-    print_info("error: butt was compiled without mp3 and ogg\n"
-            "support.\nYou won't be able to connect to a server.", 1);
-#endif
-
+  
     //fill the main section
     for(i = 0; i < cfg.audio.dev_count; i++)
         fl_g->choice_cfg_dev->add(cfg.audio.pcm_list[i]->name);
 
     fl_g->choice_cfg_dev->value(cfg.audio.dev_num);
 
+    fl_g->choice_cfg_act_srv->clear();
+    fl_g->choice_cfg_act_srv->redraw();
     for(i = 0; i < cfg.main.num_of_srv; i++)
         fl_g->choice_cfg_act_srv->add(cfg.srv[i]->name);
 
@@ -79,6 +70,8 @@ void fill_cfg_widgets()
         fl_g->button_cfg_del_srv->deactivate();
     }
 
+    fl_g->choice_cfg_act_icy->clear();
+    fl_g->choice_cfg_act_icy->redraw();
     for(i = 0; i < cfg.main.num_of_icy; i++)
         fl_g->choice_cfg_act_icy->add(cfg.icy[i]->name);
 
@@ -98,6 +91,7 @@ void fill_cfg_widgets()
 
 
 	fl_g->check_cfg_connect->value(cfg.main.connect_at_startup);
+    
 
 
     //fill the audio (stream) section
@@ -113,7 +107,10 @@ void fill_cfg_widgets()
 
     for(i = 0; bitrate[i] != 0; i++)
         if(cfg.audio.bitrate == bitrate[i])
+        {
             fl_g->choice_cfg_bitrate->value(i);
+            break;
+        }
 
     if(cfg.main.song_update)
         fl_g->check_song_update_active->value(1);
@@ -123,6 +120,7 @@ void fill_cfg_widgets()
     //fill the record section
     fl_g->input_rec_filename->value(cfg.rec.filename);
     fl_g->input_rec_folder->value(cfg.rec.folder);
+    fl_g->input_rec_split_time->value(cfg.rec.split_time);
 
     if(!strcmp(cfg.rec.codec, "mp3"))
         fl_g->radio_rec_codec_mp3->setonly();
@@ -148,11 +146,7 @@ void fill_cfg_widgets()
     else
         fl_g->check_cfg_rec->value(0);
 
-    if(!sr_updated)
-    {
-        update_samplerates();
-        sr_updated = 1;
-    }
+    update_samplerates();
 
     //fill the GUI section
     fl_g->button_gui_bg_color->color(cfg.main.bg_color,
@@ -166,7 +160,6 @@ void fill_cfg_widgets()
         fl_g->window_main->stay_on_top(1);
         fl_g->window_cfg->stay_on_top(1);
     }
-
 
 }
 
@@ -257,8 +250,9 @@ void check_time(void*)
 
     if(display_info == SENT_DATA)
     {
-        sprintf(lcd_text_buf, "info: on air\nsent: %dkb",
-                bytes_sent / 1024);
+        
+        sprintf(lcd_text_buf, "info: on air\nsent: %0.2lfMB",
+                kbytes_sent / 1024);
         print_lcd(lcd_text_buf, strlen(lcd_text_buf), 0, 1);
     }
 
@@ -278,8 +272,8 @@ void check_time(void*)
 
     if(display_info == REC_DATA)
     {
-        sprintf(lcd_text_buf, "info: record\nsize: %dkb",
-                bytes_written / 1024);
+        sprintf(lcd_text_buf, "info: record\nsize: %0.2lfMB",
+                kbytes_written / 1024);
         print_lcd(lcd_text_buf, strlen(lcd_text_buf), 0, 1);
     }
 
@@ -290,7 +284,7 @@ void check_if_disconnected(void*)
 {
     if(!connected)
     {
-        print_info("ERROR: connection lost\nreconnecting...", 1);
+        print_info("ERROR: Connection lost\nreconnecting...", 1);
         if(cfg.srv[cfg.selected_srv]->type == SHOUTCAST)
             sc_disconnect();
         else
@@ -313,7 +307,7 @@ void check_cfg_win_pos(void*)
 
 #ifdef _WIN32
     fl_g->window_cfg->position(fl_g->window_main->x() +
-                                fl_g->window_main->w()+7,
+                                fl_g->window_main->w()+15,
                                 fl_g->window_main->y());
 #else //UNIX
     fl_g->window_cfg->position(fl_g->window_main->x() +
@@ -322,6 +316,77 @@ void check_cfg_win_pos(void*)
 #endif
 
     Fl::repeat_timeout(0.1, &check_cfg_win_pos);
+}
+
+void check_split_time(void *initial_call)
+{
+    int zero = 0;
+    char *insert_pos;
+    char *path;
+    char *ext;
+    char file_num_str[10];
+    static int file_num;
+    
+    if(*((int*)initial_call) == 1)
+        file_num = 2;
+
+    /*
+    bei rec_cb diesen timer starten, falls split_time > 0 ist
+    darauf achten, dass zwischen öffnen und schließen der dateien
+    1. keine Daten verloren gehen und
+    2. der snd_rec thread nicht in die datei zu schließende datei schreibt
+    (Vielleiht kann man dazu mit rec_pause und rec_resume arbeiten
+
+*/
+
+    // Values < 0 are not allowed
+    if(fl_g->input_rec_split_time->value() < 0)
+    {
+        fl_g->input_rec_split_time->value(0);
+        return;
+    }
+
+    path = strdup(cfg.rec.path);
+    ext = util_get_file_extension(cfg.rec.filename);
+    if(ext == NULL)
+    {
+        print_info("Could not find a file extension (mp3/ogg/wav) in current filename\n"
+                "Automatic file splitting is deactivated", 0);
+        return;
+    }
+
+
+    snprintf(file_num_str, sizeof(file_num_str), "-%d", file_num); 
+
+    insert_pos = strrstr(path, ext);
+    strinsrt(&path, file_num_str, insert_pos-1);
+
+
+    if((next_fd = fl_fopen(path, "rb")) != NULL)
+    {
+        print_info("Next file ", 0);
+        print_info(path, 0);
+        print_info("already exists\nbutt keeps recording to current file", 0);
+        fclose(next_fd);
+        return;
+    }
+
+    if((next_fd = fl_fopen(path, "wb")) == NULL)
+    {
+        fl_alert("Could not open:\n%s", path);
+        return;
+    }
+
+    print_info("Recording to:", 0);
+    print_info(path, 0);
+
+    file_num++;
+
+
+    next_file = 1;
+    free(path);
+
+    Fl::repeat_timeout(60*cfg.rec.split_time, &check_split_time, &zero);
 }
 void check_song_update(void*)
 {
@@ -336,11 +401,11 @@ void check_song_update(void*)
 
     if(stat(cfg.main.song_path, &s) != 0)
     {
-       fl_alert("could not stat:\n%s\nplease check permissions", cfg.main.song_path);
-       fl_g->check_song_update_active->value(0);
-       fl_g->check_song_update_active->redraw();
-       song_timeout_running = 0;
-       return;
+
+        // File was probably locked by another application
+        // retry in 5 seconds
+        Fl::repeat_timeout(5.0, &check_song_update);
+        return;
     }
 
     if(old_t == s.st_mtime) //file hasn't changed
@@ -348,7 +413,7 @@ void check_song_update(void*)
 
     old_t = s.st_mtime;
 
-   if((cfg.main.song_fd = fopen(cfg.main.song_path, "rb")) == NULL)
+   if((cfg.main.song_fd = fl_fopen(cfg.main.song_path, "rb")) == NULL)
    {
        fl_alert("could not open:\n%s\nplease check permissions", cfg.main.song_path);
        fl_g->check_song_update_active->value(0);
@@ -375,411 +440,69 @@ exit:
     Fl::repeat_timeout(1.0, &check_song_update);
 }
 
+void expand_string(char **str)
+{
+    char m[3], d[3], y[5];
+    struct tm *date;
+    const time_t t = time(NULL);
+
+    date = localtime(&t);
+
+    snprintf(m, 3, "%02d", date->tm_mon+1);
+    snprintf(d, 3, "%02d", date->tm_mday);
+    snprintf(y, 5, "%d",   date->tm_year+1900);
+
+    strrpl(str, (char*)"%m", m);
+    strrpl(str, (char*)"%d", d);
+    strrpl(str, (char*)"%y", y);
+}
+
 void test_file_extension()
 {
     char *ext;
 
     ext = util_get_file_extension(cfg.rec.filename);
     if(ext == NULL)
-	{
-        fl_alert("Warning:\nrecord filename hasn't got an extension");
-		return;
-	}
-
+    {
+        print_info("Warning:\nRecord filename hasn't got an extension (mp3/ogg/wav)", 1);
+        return;
+    }
 
     if(strcmp(ext, cfg.rec.codec))
-        fl_alert("Warning:\nthe extension (%s) of your record file\n"
-                "doesn't match your record codec (%s)", ext, cfg.rec.codec);
+        print_info("Warning:\nThe extension of your record filename\n"
+                "does not match your record codec", 1);
 }
 
-void vu_meter(short left, short right)
+
+
+void init_main_gui_and_audio(void)
 {
-    int i;
-    static int left_delay[9] = { DELAY };
-    static int right_delay[9] = { DELAY };
-    static int left_state[9] = {OFF};
-    static int right_state[9] = {OFF};
-
-    if(left < 0)
-        left =-left;
-    if(right < 0)
-        right =-right;
-
-
-    if(left > TRESHOLD_1 && left_state[0] == OFF)
-    {
-        fl_g->left_1_light->show();
-        left_state[0] = ON;
-    }
-
-    if(left < TRESHOLD_9 && left_state[8] == ON)
-    {
-        if(!left_delay[8])
-        {
-            fl_g->left_9_light->hide();
-            left_state[8] = OFF;
-
-            for(i = 0; i < 8; i++)
-                left_delay[i] = DELAY;
-        }
-        else
-            left_delay[8]--;
-    }
-
-    if(left > TRESHOLD_2 && left_state[1] == OFF)
-    {
-        fl_g->left_2_light->show();
-        left_state[1] = ON;
-    }
-
-    if(left < TRESHOLD_8 && left_state[7] == ON)
-    {
-        if(!left_delay[7])
-        {
-            fl_g->left_8_light->hide();
-            left_state[7] = OFF;
-
-            for(i = 0; i < 7; i++)
-                left_delay[i] = DELAY;
-        }
-        else
-            left_delay[7]--;
-    }
-
-    if(left > TRESHOLD_3 && left_state[2] == OFF)
-    {
-        fl_g->left_3_light->show();
-        left_state[2] = ON;
-    }
-
-    if(left < TRESHOLD_7 && left_state[6] == ON)
-    {
-        if(!left_delay[6])
-        {
-            fl_g->left_7_light->hide();
-            left_state[6] = OFF;
-
-            for(i = 0; i < 6; i++)
-                left_delay[i] = DELAY;
-        }
-        else
-            left_delay[6]--;
-
-    }
-
-    if(left > TRESHOLD_4 && left_state[3] == OFF)
-    {
-        fl_g->left_4_light->show();
-        left_state[3] = ON;
-    }
-
-    if(left < TRESHOLD_6 && left_state[5] == ON)
-    {
-        if(!left_delay[5])
-        {
-            fl_g->left_6_light->hide();
-            left_state[5] = OFF;
-
-            for(i = 0; i < 5; i++)
-                left_delay[i] = DELAY;
-        }
-        else
-            left_delay[5]--;
-
-    }
-
-    if(left > TRESHOLD_5 && left_state[4] == OFF)
-    {
-        fl_g->left_5_light->show();
-        left_state[4] = ON;
-    }
-
-    if(left < TRESHOLD_5 && left_state[4] == ON)
-    {
-        if(!left_delay[4])
-        {
-            fl_g->left_5_light->hide();
-            left_state[4] = OFF;
-
-            for(i = 0; i < 4; i++)
-                left_delay[i] = DELAY;
-        }
-        else
-            left_delay[4]--;
-
-    }
-
-    if(left > TRESHOLD_6 && left_state[5] == OFF)
-    {
-        fl_g->left_6_light->show();
-        left_state[5] = ON;
-    }
-
-    if(left < TRESHOLD_4 && left_state[3] == ON)
-    {
-        if(!left_delay[3])
-        {
-            fl_g->left_4_light->hide();
-            left_state[3] = OFF;
-
-            for(i = 0; i < 3; i++)
-                left_delay[i] = DELAY;
-        }
-        else
-            left_delay[3]--;
-
-    }
-
-    if(left > TRESHOLD_7 && left_state[6] == OFF)
-    {
-        fl_g->left_7_light->show();
-        left_state[6] = ON;
-    }
-
-    if(left < TRESHOLD_3 && left_state[2] == ON)
-    {
-        if(!left_delay[2])
-        {
-            fl_g->left_3_light->hide();
-            left_state[2] = OFF;
-
-            for(i = 0; i < 2; i++)
-                left_delay[i] = DELAY;
-        }
-        else
-            left_delay[2]--;
-
-    }
-
-    if(left > TRESHOLD_8 && left_state[7] == OFF)
-    {
-        fl_g->left_8_light->show();
-        left_state[7] = ON;
-    }
-
-    if(left < TRESHOLD_2 && left_state[1] == ON)
-    {
-        if(!left_delay[1])
-        {
-            fl_g->left_2_light->hide();
-            left_state[1] = OFF;
-
-            for(i = 0; i < 1; i++)
-                left_delay[i] = DELAY;
-        }
-        else
-            left_delay[1]--;
-
-    }
-
-    if(left > TRESHOLD_9 && left_state[8] == OFF)
-    {
-        fl_g->left_9_light->show();
-        left_state[8] = ON;
-    }
-
-    if(left < TRESHOLD_1 && left_state[0] == ON)
-    {
-        if(!left_delay[0])
-        {
-            fl_g->left_1_light->hide();
-            left_state[0] = OFF;
-
-            left_delay[0] = DELAY;
-        }
-        else
-            left_delay[0]--;
-
-    }
-
-
-    if(right > TRESHOLD_1 && right_state[0] == OFF)
-    {
-        fl_g->right_1_light->show();
-        right_state[0] = ON;
-    }
-
-    if(right < TRESHOLD_9 && right_state[8] == ON)
-    {
-        if(!right_delay[8])
-        {
-            fl_g->right_9_light->hide();
-            right_state[8] = OFF;
-
-            for(i = 0; i < 8; i++)
-                right_delay[i] = DELAY;
-        }
-        else
-            right_delay[8]--;
-    }
-
-    if(right > TRESHOLD_2 && right_state[1] == OFF)
-    {
-        fl_g->right_2_light->show();
-        right_state[1] = ON;
-    }
-
-    if(right < TRESHOLD_8 && right_state[7] == ON)
-    {
-        if(!right_delay[7])
-        {
-            fl_g->right_8_light->hide();
-            right_state[7] = OFF;
-
-            for(i = 0; i < 7; i++)
-                right_delay[i] = DELAY;
-        }
-        else
-            right_delay[7]--;
-    }
-
-    if(right > TRESHOLD_3 && right_state[2] == OFF)
-    {
-        fl_g->right_3_light->show();
-        right_state[2] = ON;
-    }
-
-    if(right < TRESHOLD_7 && right_state[6] == ON)
-    {
-        if(!right_delay[6])
-        {
-            fl_g->right_7_light->hide();
-            right_state[6] = OFF;
-
-            for(i = 0; i < 6; i++)
-                right_delay[i] = DELAY;
-        }
-        else
-            right_delay[6]--;
-
-    }
-
-    if(right > TRESHOLD_4 && right_state[3] == OFF)
-    {
-        fl_g->right_4_light->show();
-        right_state[3] = ON;
-    }
-
-    if(right < TRESHOLD_6 && right_state[5] == ON)
-    {
-        if(!right_delay[5])
-        {
-            fl_g->right_6_light->hide();
-            right_state[5] = OFF;
-
-            for(i = 0; i < 5; i++)
-                right_delay[i] = DELAY;
-        }
-        else
-            right_delay[5]--;
-
-    }
-
-    if(right > TRESHOLD_5 && right_state[4] == OFF)
-    {
-        fl_g->right_5_light->show();
-        right_state[4] = ON;
-    }
-
-    if(right < TRESHOLD_5 && right_state[4] == ON)
-    {
-        if(!right_delay[4])
-        {
-            fl_g->right_5_light->hide();
-            right_state[4] = OFF;
-
-            for(i = 0; i < 4; i++)
-                right_delay[i] = DELAY;
-        }
-        else
-            right_delay[4]--;
-
-    }
-
-    if(right > TRESHOLD_6 && right_state[5] == OFF)
-    {
-        fl_g->right_6_light->show();
-        right_state[5] = ON;
-    }
-
-    if(right < TRESHOLD_4 && right_state[3] == ON)
-    {
-        if(!right_delay[3])
-        {
-            fl_g->right_4_light->hide();
-            right_state[3] = OFF;
-
-            for(i = 0; i < 3; i++)
-                right_delay[i] = DELAY;
-        }
-        else
-            right_delay[3]--;
-
-    }
-
-    if(right > TRESHOLD_7 && right_state[6] == OFF)
-    {
-        fl_g->right_7_light->show();
-        right_state[6] = ON;
-    }
-
-    if(right < TRESHOLD_3 && right_state[2] == ON)
-    {
-        if(!right_delay[2])
-        {
-            fl_g->right_3_light->hide();
-            right_state[2] = OFF;
-
-            for(i = 0; i < 2; i++)
-                right_delay[i] = DELAY;
-        }
-        else
-            right_delay[2]--;
-
-    }
-
-    if(right > TRESHOLD_8 && right_state[7] == OFF)
-    {
-        fl_g->right_8_light->show();
-        right_state[7] = ON;
-    }
-
-    if(right < TRESHOLD_2 && right_state[1] == ON)
-    {
-        if(!right_delay[1])
-        {
-            fl_g->right_2_light->hide();
-            right_state[1] = OFF;
-
-            for(i = 0; i < 1; i++)
-                right_delay[i] = DELAY;
-        }
-        else
-            right_delay[1]--;
-
-    }
-
-    if(right > TRESHOLD_9 && right_state[8] == OFF)
-    {
-        fl_g->right_9_light->show();
-        right_state[8] = ON;
-    }
-
-    if(right < TRESHOLD_1 && right_state[0] == ON)
-    {
-        if(!right_delay[0])
-        {
-            fl_g->right_1_light->hide();
-            right_state[0] = OFF;
-
-            right_delay[0] = DELAY;
-        }
-        else
-            right_delay[0]--;
-
-    }
-
-
-    //Fl::check();
+    fl_g->slider_gain->value(util_factor_to_db(cfg.main.gain));
+    fl_g->window_main->redraw();
+
+    if(cfg.gui.ontop)
+        fl_g->window_main->stay_on_top(1);
+
+    lame_stream.channel = cfg.audio.channel;
+    lame_stream.bitrate = cfg.audio.bitrate;
+    lame_stream.samplerate_in = cfg.audio.samplerate;
+    lame_stream.samplerate_out = cfg.audio.samplerate;
+    lame_enc_reinit(&lame_stream);
+
+    lame_rec.channel = cfg.rec.channel;
+    lame_rec.bitrate = cfg.rec.bitrate;
+    lame_rec.samplerate_in = cfg.audio.samplerate;
+    lame_rec.samplerate_out = cfg.rec.samplerate;
+    lame_enc_reinit(&lame_rec);
+
+    vorbis_stream.channel = cfg.audio.channel;
+    vorbis_stream.bitrate = cfg.audio.bitrate;
+    vorbis_stream.samplerate = cfg.audio.samplerate;
+    vorbis_enc_reinit(&vorbis_stream);
+
+    vorbis_rec.channel = cfg.rec.channel;
+    vorbis_rec.bitrate = cfg.rec.bitrate;
+    vorbis_rec.samplerate = cfg.rec.samplerate;
+    vorbis_enc_reinit(&vorbis_rec);
 }
 

@@ -30,10 +30,10 @@ typedef struct
 {
     char *name;
     char *addr;
-    char *user;
     char *pwd;
     char *mount;        //mountpoint for icecast server
-    unsigned int port;
+    char *usr;          //user for icecast server
+    int port;
     int type;           //SHOUTCAST or ICECAST
 
 }server_t;
@@ -72,6 +72,7 @@ typedef struct
         int num_of_icy;
         int bg_color, txt_color;
 		int connect_at_startup;
+        float gain;
 
     }main;
 
@@ -100,6 +101,7 @@ typedef struct
         char *path;
         FILE *fd;
         int start_rec;
+        int split_time;
 
     }rec;
 
@@ -119,8 +121,8 @@ extern char *cfg_path;      //Path to config file
 extern config_t cfg;        //Holds config parameters
 extern bool unsaved_changes;//is checked when closing butt and informs the user for unsaved changes
 
-int cfg_write_file();       //Writes current config_t struct to cfg_path
-int cfg_set_values();       //Reads config file and fills the config_t struct
+int cfg_write_file(char *path); //Writes current config_t struct to path or cfg_path if path is NULL
+int cfg_set_values(char *path); //Reads config file from path or cfg_path if path is NULL and fills the config_t struct
 int cfg_create_default();   //Creates a default config file, if there isn't one yet
 
 #endif
