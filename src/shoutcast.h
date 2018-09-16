@@ -17,10 +17,10 @@
 #define SHOUTCAST_H
 
 
-int sc_update_song();
-int sc_connect();
+int sc_update_song(void);
+int sc_connect(void);
 int sc_send(char *buf, int buf_len);
-void sc_disconnect();
+void sc_disconnect(void);
 
 #endif
 

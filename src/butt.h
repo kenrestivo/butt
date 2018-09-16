@@ -19,6 +19,9 @@
 #include "timer.h"
 #include "lame_encode.h"
 #include "vorbis_encode.h"
+#include "opus_encode.h"
+#include "flac_encode.h"
+#include "aac_encode.h"
 
 extern bool record;
 extern bool recording;      //TRUE if butt is recording
@@ -29,17 +32,22 @@ extern bool streaming;
 extern bool song_timeout_running; //TRUE if automatic song updating is running
 
 extern int stream_socket;
-extern unsigned int bytes_sent;
-extern unsigned int bytes_written;
+extern double kbytes_sent;
+extern double kbytes_written;
+
+extern unsigned int record_start_hour; // the hour when last recording started
 
 extern sec_timer rec_timer;
 extern sec_timer stream_timer;
-extern sec_timer xrun_timer;
 
 extern lame_enc lame_stream;
 extern lame_enc lame_rec;
 extern vorbis_enc vorbis_stream;
 extern vorbis_enc vorbis_rec;
-
+extern opus_enc opus_stream;
+extern opus_enc opus_rec;
+extern flac_enc flac_rec;
+extern aac_enc aac_stream;
+extern aac_enc aac_rec;
 
 #endif

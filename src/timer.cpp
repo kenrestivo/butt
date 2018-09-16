@@ -18,7 +18,6 @@
 
 #include "timer.h"
 
-char time_str[10];
 
 void timer_init(sec_timer *t, int duration)
 {
@@ -41,6 +40,7 @@ int timer_is_elapsed(sec_timer *t)
 
 char *timer_get_time_str(sec_timer *t)
 {
+    static char time_str[10];
     int hour = 0, min = 0, sec = 0;
     time_t cur_time = time(NULL);
 
@@ -51,7 +51,7 @@ char *timer_get_time_str(sec_timer *t)
     min %= 60;
     sec %= 60;
 
-    snprintf(time_str, 10, "%02d:%02d:%02d", hour, min, sec);
+    snprintf(time_str, sizeof(time_str), "%02d:%02d:%02d", hour, min, sec);
 
     return time_str;
 }

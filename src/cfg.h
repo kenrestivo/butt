@@ -25,15 +25,29 @@ enum {
     ICECAST = 1
 };
 
+enum {
+    CHOICE_STEREO = 0,
+    CHOICE_MONO = 1
+};
+
+enum {
+    CHOICE_MP3 = 0,
+    CHOICE_OGG = 1,
+    CHOICE_OPUS = 2,
+    CHOICE_AAC = 3,
+    CHOICE_FLAC = 4,
+    CHOICE_WAV = 5
+};
+
 extern const char CONFIG_FILE[];
 typedef struct
 {
     char *name;
     char *addr;
-    char *user;
     char *pwd;
     char *mount;        //mountpoint for icecast server
-    unsigned int port;
+    char *usr;          //user for icecast server
+    int port;
     int type;           //SHOUTCAST or ICECAST
 
 }server_t;
@@ -71,7 +85,9 @@ typedef struct
         int num_of_srv;
         int num_of_icy;
         int bg_color, txt_color;
-		int connect_at_startup;
+	int connect_at_startup;
+        float gain;
+	char *log_file;
 
     }main;
 
@@ -84,6 +100,9 @@ typedef struct
         int resolution;
         int channel;
         int bitrate;
+        int buffer_ms;
+        int resample_mode;
+        int aac_aot;
         char *codec;
 
     }audio;
@@ -98,8 +117,11 @@ typedef struct
         char *filename;
         char *folder;
         char *path;
+        char *path_fmt;
         FILE *fd;
         int start_rec;
+        int split_time;
+        int sync_to_hour;
 
     }rec;
 
@@ -107,6 +129,7 @@ typedef struct
     {
         int attach;
         int ontop;
+	int lcd_auto;
     }gui;
 
     server_t **srv;
@@ -115,13 +138,14 @@ typedef struct
 }config_t;
 
 
+
 extern char *cfg_path;      //Path to config file
 extern config_t cfg;        //Holds config parameters
 extern bool unsaved_changes;//is checked when closing butt and informs the user for unsaved changes
 
-int cfg_write_file();       //Writes current config_t struct to cfg_path
-int cfg_set_values();       //Reads config file and fills the config_t struct
-int cfg_create_default();   //Creates a default config file, if there isn't one yet
+int cfg_write_file(char *path); //Writes current config_t struct to path or cfg_path if path is NULL
+int cfg_set_values(char *path); //Reads config file from path or cfg_path if path is NULL and fills the config_t struct
+int cfg_create_default(void);   //Creates a default config file, if there isn't one yet
 
 #endif
 

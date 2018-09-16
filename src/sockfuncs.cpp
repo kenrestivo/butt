@@ -20,7 +20,7 @@
 
 #ifdef _WIN32
  #include <winsock2.h>
- #define errno WSAGetLastError()
+// #define errno WSAGetLastError()
  #define EWOULDBLOCK WSAEWOULDBLOCK
 #else
  #include <sys/types.h>
@@ -39,7 +39,7 @@
 #endif
 
 
-int sock_connect(char *addr, short port, int msec)
+int sock_connect(const char *addr, short port, int timout_ms)
 {
 
     int sock;
@@ -76,7 +76,7 @@ int sock_connect(char *addr, short port, int msec)
 
     connect(sock, (struct sockaddr*) &hostname, sizeof(hostname));
 
-    if(sock_select(&sock, msec, WRITE) <= 0)
+    if(sock_select(&sock, timout_ms, WRITE) <= 0)
     {
         sock_close(&sock);
         return SOCK_TIMEOUT;
@@ -112,7 +112,7 @@ int sock_setbufsize(int *s, int send_size, int recv_size)
     return 0;
 }
 
-int sock_send(int *s, char *buf, int len, int msec)
+int sock_send(int *s, const char *buf, int len, int timout_ms)
 {
     int rc;
     int sent = 0;
@@ -120,27 +120,26 @@ int sock_send(int *s, char *buf, int len, int msec)
 
     while(sent < len)
     {
-        rc = sock_select(s, 60000, WRITE); //check if socket is connected
+        rc = sock_select(s, 10000, WRITE); //check if socket is connected
+        
         if(rc == 0)
         {
-            printf("select returned 0\n");
             fflush(stdout);
             return SOCK_TIMEOUT;
         }
 
         if(rc == -1)
         {
-            printf("select returned -1\n");
             fflush(stdout);
             return SOCK_TIMEOUT;
         }
 
         if((rc = send(*s, buf+sent, len-sent, 0)) < 0)
         {
+            
             error = errno;
             if(error != EWOULDBLOCK)
             {
-                printf("send errno: %d\n", error);
                 fflush(stdout);
                 return SOCK_TIMEOUT;
             }
@@ -152,11 +151,11 @@ int sock_send(int *s, char *buf, int len, int msec)
     return sent;
 }
 
-int sock_recv(int *s, char *buf, int len, int msec)
+int sock_recv(int *s, char *buf, int len, int timout_ms)
 {
     int rc;
 
-    if(sock_select(s, msec, READ) <= 0)
+    if(sock_select(s, timout_ms, READ) <= 0)
         return SOCK_TIMEOUT;
 
     rc = recv(*s, buf, len, 0);
@@ -194,7 +193,7 @@ int sock_block(int *s)
 #endif
 }
 
-int sock_select(int *s, int msec, int mode)
+int sock_select(int *s, int timout_ms, int mode)
 {
    struct timeval tv;
    fd_set fd_wr, fd_rd;
@@ -204,8 +203,8 @@ int sock_select(int *s, int msec, int mode)
    FD_SET(*s, &fd_wr);
    FD_SET(*s, &fd_rd);
 
-   tv.tv_sec = msec/1000;
-   tv.tv_usec = (msec%1000)*1000;
+   tv.tv_sec = timout_ms/1000;
+   tv.tv_usec = (timout_ms%1000)*1000;
 
    switch(mode)
    {

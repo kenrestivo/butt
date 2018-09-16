@@ -23,8 +23,7 @@
 struct lame_enc {
     lame_global_flags *gfp;
     int bitrate;
-    int samplerate_in;
-    int samplerate_out;
+    int samplerate;
     int channel;
     volatile int state;
 };
