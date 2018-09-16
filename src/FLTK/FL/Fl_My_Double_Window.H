@@ -1,16 +1,19 @@
 #ifndef FL_MY_DOUBLE_WINDOW_H
 #define FL_MY_DOUBLE_WINDOW_H
 
-#include <FL/Fl_Double_Window.H>
+
 #include <FL/x.H>
+#include <FL/Fl_Double_Window.H>
+
 
 #ifdef _WIN32
- #include <windows.h>
+#include <windows.h>
 #elif __APPLE__
- #include <Carbon/Carbon.h>
+#import <Cocoa/Cocoa.h>
 #else
- #include <X11/Xlib.h>
+#include <X11/Xlib.h>
 #endif
+
 
 class Fl_My_Double_Window : public Fl_Double_Window {
     public:
@@ -18,15 +21,14 @@ class Fl_My_Double_Window : public Fl_Double_Window {
 #ifdef _WIN32
             SetWindowPos(fl_xid(this), ontop ? HWND_TOPMOST : HWND_NOTOPMOST,
                     0,0,0,0, SWP_NOMOVE|SWP_NOSIZE|SWP_NOOWNERZORDER);
+            
 #elif __APPLE__
-            WindowClass win_class;
-
-            GetWindowClass(fl_xid(this), &win_class);
-
-            if(ontop && win_class == kDocumentWindowClass)
-                SetWindowClass(fl_xid(this), kUtilityWindowClass);
-            if(!ontop && win_class == kUtilityWindowClass)
-                SetWindowClass(fl_xid(this), kDocumentWindowClass);
+            
+           if(ontop)
+                [fl_xid(this) setLevel:NSFloatingWindowLevel];
+            else
+                [fl_xid(this) setLevel:NSNormalWindowLevel];
+         
 #else //UNIX
             XEvent e;
 

@@ -25,16 +25,30 @@
 
 #ifdef _WIN32
  #include <time.h>
+ #define IDI_ICON 101 
 #endif
+
+#if ! defined(__APPLE__) && !defined(WIN32)  
+ #include <FL/Fl_File_Icon.H>
+#endif
+
+#include "config.h"
 
 #include "cfg.h"
 #include "butt.h"
 #include "port_audio.h"
 #include "lame_encode.h"
+#include "opus_encode.h"
+#include "flac_encode.h"
+#include "aac_encode.h"
 #include "shoutcast.h"
 #include "parseconfig.h"
+#include "vu_meter.h"
+#include "util.h"
+#include "flgui.h"
+#include "fl_funcs.h"
+#include "fl_timer_funcs.h"
 
-#include "config.h"
 
 bool record;
 bool recording;
@@ -45,19 +59,26 @@ bool try_connect;
 bool song_timeout_running;
 
 int stream_socket;
-unsigned int bytes_sent;
-unsigned int bytes_written;
+double kbytes_sent;
+double kbytes_written;
+unsigned int record_start_hour;
 
 sec_timer rec_timer;
 sec_timer stream_timer;
-sec_timer xrun_timer;
 
 lame_enc lame_stream;
 lame_enc lame_rec;
 vorbis_enc vorbis_stream;
 vorbis_enc vorbis_rec;
+opus_enc opus_stream;
+opus_enc opus_rec;
+flac_enc flac_rec;
+aac_enc aac_stream;
+aac_enc aac_rec;
 
-int main()
+
+
+int main(int argc, char *argv[])
 {
 
     char *p;
@@ -68,96 +89,118 @@ int main()
     signal(SIGPIPE, SIG_IGN); //ignore the SIGPIPE signal.
         //(in case the server closes the connection unexpected)
 #endif
+    
+#if ! defined(__APPLE__) && !defined(WIN32)  
+    Fl_File_Icon::load_system_icons();
+#endif
 
-    SHOW_GUI();
+    fl_g = new flgui(); 
+    fl_g->window_main->show();
 
-    snprintf(info_buf, sizeof(info_buf),
-            "starting %s\nwritten by Daniel Noethen,\nmodified by ken restivo\n", VERSION);
+#ifdef _WIN32 
+    fl_g->window_main->icon((char *)LoadIcon(fl_display, MAKEINTRESOURCE(IDI_ICON)));
+    // The fltk icon code above only loads the default icon. 
+    // Here, once the window is shown, we can assign 
+    // additional icons, just to make things a bit nicer. 
+    HANDLE bigicon = LoadImage(GetModuleHandle(0), MAKEINTRESOURCE(IDI_ICON), IMAGE_ICON, 32, 32, 0); 
+    SendMessage(fl_xid(fl_g->window_main), WM_SETICON, ICON_BIG, (LPARAM)bigicon); 
+    HANDLE smallicon = LoadImage(GetModuleHandle(0), MAKEINTRESOURCE(IDI_ICON), IMAGE_ICON, 16, 16, 0); 
+    SendMessage(fl_xid(fl_g->window_main), WM_SETICON, ICON_SMALL, (LPARAM)smallicon); 
+#endif 
+
+
+    snprintf(info_buf, sizeof(info_buf), "Starting %s\nWritten by Daniel Nöthen\n"
+    	"PayPal: bipak@gmx.net\n"
+        "Bitcoin: 13xxTxB7hUGrXAGCR7hLi85GSXdE1Jyhx9\n", PACKAGE_STRING);
     print_info(info_buf, 0);
 
 #ifdef _WIN32
-    //If there is no "%APPDATA% we are probably in none-NT Windows
-    //So we save the config file to the programm directory
-    if((p = getenv("APPDATA")) == NULL)
+    if((argc > 2) && (!strcmp(argv[1], "-c")))
     {
+        cfg_path = (char*)malloc((strlen(argv[2])+1) * sizeof(char));
+        strcpy(cfg_path, argv[2]);
+    }
+    else if((p = getenv("APPDATA")) == NULL)
+    {
+        //If there is no "%APPDATA% we are probably in none-NT Windows
+        //So we save the config file to the programm directory
         cfg_path = (char*)malloc(strlen(CONFIG_FILE)+1);
         strcpy(cfg_path, CONFIG_FILE);
     }
     else
     {
-        cfg_path = (char*)malloc(PATH_MAX+strlen(CONFIG_FILE)+1);
+        cfg_path = (char*)malloc((PATH_MAX+strlen(CONFIG_FILE)+1) * sizeof(char));
         snprintf(cfg_path, PATH_MAX+strlen(CONFIG_FILE), "%s\\%s", p, CONFIG_FILE);  
     }
 #else //UNIX
-    if((p = getenv("HOME")) == NULL)
+    p = getenv("HOME");
+    if((argc > 2) && (!strcmp(argv[1], "-c")))
+    {
+        cfg_path = (char*)malloc((strlen(argv[2])+1) * sizeof(char));
+        strcpy(cfg_path, argv[2]);
+    }
+    else if(p == NULL)
     {
         ALERT("No home-directory found");
         return 1;
     }
-    cfg_path = (char*)malloc(PATH_MAX+strlen(CONFIG_FILE)+1);
-    snprintf(cfg_path, PATH_MAX+strlen(CONFIG_FILE), "%s/%s", p, CONFIG_FILE);  
-
-#endif
-
-    if(!snd_init())
-        print_info("PortAudio init succeeded", 0);
     else
     {
-        ALERT("PortAudio init failed");
+        cfg_path = (char*)malloc((PATH_MAX+strlen(CONFIG_FILE)+1) * sizeof(char));
+        snprintf(cfg_path, PATH_MAX+strlen(CONFIG_FILE), "%s/%s", p, CONFIG_FILE);  
+    }
+#endif
+
+    lame_stream.gfp = NULL;
+    lame_rec.gfp = NULL;
+    flac_rec.encoder = NULL;
+    aac_stream.handle = NULL;
+    aac_rec.handle = NULL;
+
+    snprintf(info_buf, sizeof(info_buf), "Reading config %s", cfg_path);
+    print_info(info_buf, 0);
+
+    if(snd_init() != 0)
+    {
+        ALERT("PortAudio init failed\nbutt is going to close now");
         return 1;
     }
 
-    if(cfg_set_values())        //read configfile and set the config struct
+    if(cfg_set_values(NULL) != 0)        //read config file and initialize config struct
     {
+        snprintf(info_buf, sizeof(info_buf), "Could not find config %s", cfg_path);
+        print_info(info_buf, 1);
+
         if(cfg_create_default())
         {
-            ALERT("Could not create config file");
+            fl_alert("Could not create config %s\nbutt is going to close now", cfg_path);
             return 1;
         }
-        sprintf(info_buf, "butt created a default config file:\n(%s)\n",
+        sprintf(info_buf, "butt created a default config at\n%s\n",
                 cfg_path );
 
         print_info(info_buf, 0);
-        cfg_set_values();
+        cfg_set_values(NULL);
     }
 
-#ifdef HAVE_LIBLAME
-    lame_stream.channel = cfg.audio.channel;
-    lame_stream.bitrate = cfg.audio.bitrate;
-    lame_stream.samplerate_in = cfg.audio.samplerate;
-    lame_stream.samplerate_out = cfg.audio.samplerate;
-    lame_enc_init(&lame_stream);
-
-    lame_rec.channel = cfg.rec.channel;
-    lame_rec.bitrate = cfg.rec.bitrate;
-    lame_rec.samplerate_in = cfg.audio.samplerate;
-    lame_rec.samplerate_out = cfg.rec.samplerate;
-    lame_enc_init(&lame_rec);
-#endif
-#ifdef HAVE_LIBVORBIS
-    vorbis_stream.channel = cfg.audio.channel;
-    vorbis_stream.bitrate = cfg.audio.bitrate;
-    vorbis_stream.samplerate = cfg.audio.samplerate;
-    vorbis_enc_init(&vorbis_stream);
-
-    vorbis_rec.channel = cfg.rec.channel;
-    vorbis_rec.bitrate = cfg.rec.bitrate;
-    vorbis_rec.samplerate = cfg.rec.samplerate;
-    vorbis_enc_init(&vorbis_rec);
-#endif
-
-    print_info("=========================\n", 0);
+    init_main_gui_and_audio();
 
     snd_open_stream();
 
-    strcpy(lcd_buf, "info: idle");
-    PRINT_LCD(lcd_buf, strlen(lcd_buf), 0, 1);
+    vu_init();
 
-    if(cfg.gui.ontop)
-        fl_g->window_main->stay_on_top(1);
+    Fl::add_timeout(0.01, &vu_meter_timer);
+    Fl::add_timeout(5, &display_rotate_timer);
+
+    strcpy(lcd_buf, "idle");
+    PRINT_LCD(lcd_buf, strlen(lcd_buf), 0, 1);
 
 	if(cfg.main.connect_at_startup)
 		button_connect_cb();
+
+    snprintf(info_buf, sizeof(info_buf),
+            "butt %s started successfully", VERSION);
+    print_info(info_buf, 0);
 
     GUI_LOOP();
 

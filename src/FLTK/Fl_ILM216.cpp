@@ -41,11 +41,11 @@
 #include "butt.h"
 #include "flgui.h"
 
-#include "xpm/rec.xpm" //rec_xpm
-#include "xpm/rec_dark.xpm" //rec_xpm
-#include "xpm/rec_armed.xpm" //rec_xpm
-#include "xpm/conn.xpm" //conn_xpm
-#include "xpm/conn_dark.xpm" //conn_xpm
+#include "../xpm/rec.xpm" //rec_xpm
+#include "../xpm/rec_dark.xpm" //rec_xpm
+#include "../xpm/rec_armed.xpm" //rec_xpm
+#include "../xpm/conn.xpm" //conn_xpm
+#include "../xpm/conn_dark.xpm" //conn_xpm
 
 
 //
@@ -340,7 +340,7 @@ Fl_ILM216::Fl_ILM216(int        X,        // I - X position
 // 'Fl_ILM216::~Fl_ILM216()' - Delete an ILM-216 widget.
 //
 
-Fl_ILM216::~Fl_ILM216()
+Fl_ILM216::~Fl_ILM216(void)
 {
   // Unload the font data...
     for (int i = 0; i < 256; i ++)
@@ -370,7 +370,7 @@ int Fl_ILM216::handle(int event)
 // 'Fl_ILM216::draw()' - Draw the widget.
 //
 
-void Fl_ILM216::draw()
+void Fl_ILM216::draw(void)
 {
     int        i;                // Looping var
     int        X = x() + (w() - 16 * 24) / 2;    // X base position

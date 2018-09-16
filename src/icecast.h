@@ -16,10 +16,10 @@
 #ifndef ICECAST_H
 #define ICECAST_H
 
-int ic_init();
-int ic_connect();
+int ic_init(void);
+int ic_connect(void);
 int ic_send(char *buf, int buf_len);
-int ic_update_song();
-void ic_disconnect();
+int ic_update_song(void);
+void ic_disconnect(void);
 
 #endif
