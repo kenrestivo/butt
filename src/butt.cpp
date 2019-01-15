@@ -1,6 +1,6 @@
 // butt - broadcast using this tool
 //
-// Copyright 2007-2008 by Daniel Noethen.
+// Copyright 2007-2018 by Daniel Noethen.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -40,7 +40,6 @@
 #include "lame_encode.h"
 #include "opus_encode.h"
 #include "flac_encode.h"
-#include "aac_encode.h"
 #include "shoutcast.h"
 #include "parseconfig.h"
 #include "vu_meter.h"
@@ -48,6 +47,9 @@
 #include "flgui.h"
 #include "fl_funcs.h"
 #include "fl_timer_funcs.h"
+#ifdef HAVE_LIBFDK_AAC
+ #include "aac_encode.h"
+#endif
 
 
 bool record;
@@ -57,6 +59,7 @@ bool streaming;
 bool disconnect;
 bool try_connect;
 bool song_timeout_running;
+bool app_timeout_running;
 
 int stream_socket;
 double kbytes_sent;
@@ -72,9 +75,12 @@ vorbis_enc vorbis_stream;
 vorbis_enc vorbis_rec;
 opus_enc opus_stream;
 opus_enc opus_rec;
+flac_enc flac_stream;
 flac_enc flac_rec;
-aac_enc aac_stream;
-aac_enc aac_rec;
+#ifdef HAVE_LIBFDK_AAC
+ aac_enc aac_stream;
+ aac_enc aac_rec;
+#endif
 
 
 
@@ -110,8 +116,7 @@ int main(int argc, char *argv[])
 
 
     snprintf(info_buf, sizeof(info_buf), "Starting %s\nWritten by Daniel Nöthen\n"
-    	"PayPal: bipak@gmx.net\n"
-        "Bitcoin: 13xxTxB7hUGrXAGCR7hLi85GSXdE1Jyhx9\n", PACKAGE_STRING);
+    	"PayPal: paypal@danielnoethen.de\n", PACKAGE_STRING);
     print_info(info_buf, 0);
 
 #ifdef _WIN32
@@ -154,8 +159,12 @@ int main(int argc, char *argv[])
     lame_stream.gfp = NULL;
     lame_rec.gfp = NULL;
     flac_rec.encoder = NULL;
+    flac_stream.encoder = NULL;
+#ifdef HAVE_LIBFDK_AAC
     aac_stream.handle = NULL;
     aac_rec.handle = NULL;
+#endif
+    
 
     snprintf(info_buf, sizeof(info_buf), "Reading config %s", cfg_path);
     print_info(info_buf, 0);

@@ -1,6 +1,6 @@
 // FLTK GUI related functions
 //
-// Copyright 2007-2008 by Daniel Noethen.
+// Copyright 2007-2018 by Daniel Noethen.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -30,6 +30,9 @@ void print_lcd(const char *text, int len, int home, int clear);
 void test_file_extension(void);
 void expand_string(char **str);
 void init_main_gui_and_audio(void);
+
+typedef const char* (*currentTrackFunction)(void);
+extern currentTrackFunction getCurrentTrackFunctionFromId(int i);
 
 #endif
 

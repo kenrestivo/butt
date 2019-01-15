@@ -1,6 +1,6 @@
 // FLTK callback functions for butt
 //
-// Copyright 2007-2008 by Daniel Noethen.
+// Copyright 2007-2018 by Daniel Noethen.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -132,15 +132,27 @@ void button_connect_cb(void)
         return;
     }
 
-
-
-
     if(!strcmp(cfg.audio.codec, "ogg") && (cfg.audio.bitrate < 48))
     {
         print_info("Error: ogg vorbis encoder doesn't support bitrates\n"
                     "lower than 48kbit",1);
         return;
     }
+    
+    if(cfg.srv[cfg.selected_srv]->type == SHOUTCAST)
+    {
+        if( (!strcmp(cfg.audio.codec, "ogg")) || (!strcmp(cfg.audio.codec, "opus")) )
+        {
+            snprintf(text_buf, sizeof(text_buf), "Warning: %s is not supported by every ShoutCast version", cfg.audio.codec);
+            print_info(text_buf, 1);
+        }
+        if(!strcmp(cfg.audio.codec, "flac"))
+        {
+            print_info("Error: FLAC is not supported by ShoutCast", 1);
+            return;
+        }
+    }
+
 
     if(cfg.srv[cfg.selected_srv]->type == SHOUTCAST)
         snprintf(text_buf, sizeof(text_buf), "Connecting to %s:%u (%u) ...",
@@ -162,9 +174,6 @@ void button_connect_cb(void)
     pthread_create(&pt_connect, NULL, connect_thread, NULL);
     Fl::add_timeout(0, &print_connecting_timeout);
 
-
-
-
     while(try_to_connect)
     {
         usleep(10000); //10 ms
@@ -182,6 +191,12 @@ void button_connect_cb(void)
     
     if(!strcmp(cfg.audio.codec, "opus"))
         opus_enc_write_header(&opus_stream);
+    
+    // Reset the internal flac frame counter to zero to
+    // make sure that the header is sent to the server upon next connect
+    if(!strcmp(cfg.audio.codec, "flac"))
+        flac_enc_reinit(&flac_stream);
+
 
     print_info("Connection established", 0);
     snprintf(text_buf, sizeof(text_buf),
@@ -192,7 +207,7 @@ void button_connect_cb(void)
             "Samplerate:\t%dHz\n",
             cfg.srv[cfg.selected_srv]->type == SHOUTCAST ? "ShoutCast" : "IceCast",
             cfg.audio.codec,
-            cfg.audio.bitrate,
+             strcmp(cfg.audio.codec, "flac") == 0 ? 0 : cfg.audio.bitrate,
             strcmp(cfg.audio.codec, "opus") == 0 ? 48000 : cfg.audio.samplerate
             );
 
@@ -241,6 +256,14 @@ void button_connect_cb(void)
         Fl::add_timeout(0.1, &songfile_timer);
         song_timeout_running = 1;
     }
+    
+    if(cfg.main.app_update && !app_timeout_running)
+    {
+        current_track_app = getCurrentTrackFunctionFromId(cfg.main.app_update_service);
+        Fl::add_timeout(0.1, &app_timer);
+        app_timeout_running = 1;
+    }
+
 
     snd_start_stream();
 
@@ -250,9 +273,11 @@ void button_connect_cb(void)
         timer_init(&rec_timer, 1);
     }
 
+    snprintf(text_buf, sizeof(text_buf), "Connected to: %s\n", cfg.srv[cfg.selected_srv]->name);
+    fl_g->window_main->label(text_buf);
 
     display_info = STREAM_TIME;
-    button_cfg_song_go_cb();
+    update_song();
 }
 
 void button_cfg_cb(void)
@@ -601,6 +626,7 @@ void button_disconnect_cb(void)
     fl_g->choice_cfg_bitrate->activate();
     fl_g->choice_cfg_samplerate->activate();
     fl_g->choice_cfg_channel->activate();
+    
 
 
     if(!recording)
@@ -613,6 +639,12 @@ void button_disconnect_cb(void)
         Fl::remove_timeout(&songfile_timer);
         song_timeout_running = 0;
     }
+    
+    if(app_timeout_running)
+    {
+        Fl::remove_timeout(&app_timer);
+        app_timeout_running = 0;
+    }
 
     if(connected)
     {
@@ -623,6 +655,8 @@ void button_disconnect_cb(void)
             sc_disconnect();
         else
             ic_disconnect();
+        
+        fl_g->window_main->label(PACKAGE_STRING);
     }
     else
         print_info("Connecting canceled\n", 0);
@@ -815,7 +849,7 @@ void button_record_cb(void)
         flac_enc_init_FILE(&flac_rec, cfg.rec.fd);
     }
 
-    // User may not change any record related audio settings while recorcding
+    // User may not change any record related audio settings while recording
     fl_g->choice_rec_codec->deactivate();
     fl_g->choice_rec_bitrate->deactivate();
     fl_g->choice_cfg_channel->deactivate();
@@ -986,30 +1020,42 @@ void button_cfg_add_icy_cb(void)
     fl_g->window_add_icy->show();
 }
 
-void button_cfg_song_go_cb(void)
+
+void update_song(void)
 {
     char text_buf[256];
-
+    
     int (*xc_update_song)() = NULL;
-
+    
+   
     if(!connected || cfg.main.song == NULL)
         return;
-
+    
     if(cfg.srv[cfg.selected_srv]->type == SHOUTCAST)
         xc_update_song = &sc_update_song;
     else //if(cfg.srv[cfg.selected_srv]->type == ICECAST)
         xc_update_song = &ic_update_song;
-
+    
     if(xc_update_song() == 0)
     {
         snprintf(text_buf, sizeof(text_buf),
-                "Updated songname to:\n%s\n",
-                cfg.main.song);
-
+                 "Updated songname to:\n%s\n",
+                 cfg.main.song);
+        
         print_info(text_buf, 0);
     }
     else
         print_info("Updating songname failed", 1);
+    }
+
+void button_cfg_song_go_cb(void)
+{
+    int (*xc_update_song)() = NULL;
+    
+    cfg.main.song = (char*)realloc(cfg.main.song, strlen(fl_g->input_cfg_song->value())+1);
+    strcpy(cfg.main.song, fl_g->input_cfg_song->value());
+    
+    update_song();
 
     // Set focus on the song input field and mark the whole text
     fl_g->input_cfg_song->take_focus();
@@ -1020,11 +1066,7 @@ void button_cfg_song_go_cb(void)
 
 void input_cfg_song_cb(void)
 {
-     cfg.main.song =
-        (char*)realloc(cfg.main.song,
-                  strlen(fl_g->input_cfg_song->value())+1 );
-
-    strcpy(cfg.main.song, fl_g->input_cfg_song->value());
+   
 }
 
 void input_cfg_buffer_cb(bool print_message)
@@ -1431,7 +1473,9 @@ void choice_cfg_bitrate_cb(void)
     cfg.audio.bitrate = br_list[sel_br];
     lame_stream.bitrate = br_list[sel_br];
     vorbis_stream.bitrate = br_list[sel_br];
+#ifdef HAVE_LIBFDK_AAC
     aac_stream.bitrate = br_list[sel_br];
+#endif
     opus_stream.bitrate = br_list[sel_br]*1000;
 
 
@@ -1482,6 +1526,7 @@ void choice_cfg_bitrate_cb(void)
         }
     }
 
+#ifdef HAVE_LIBFDK_AAC
     if(fl_g->choice_cfg_codec->value() == CHOICE_AAC)
     {
         rc = aac_enc_reinit(&aac_stream);
@@ -1497,6 +1542,7 @@ void choice_cfg_bitrate_cb(void)
             return;
         }
     }
+#endif
 
 
     snprintf(text_buf, sizeof(text_buf), "Stream bitrate set to: %dk", cfg.audio.bitrate);
@@ -1525,7 +1571,9 @@ void choice_rec_bitrate_cb(void)
     lame_rec.bitrate = br_list[sel_br];
     vorbis_rec.bitrate = br_list[sel_br];
     opus_rec.bitrate = br_list[sel_br]*1000;
+#ifdef HAVE_LIBFDK_AAC
     aac_rec.bitrate = br_list[sel_br];
+#endif
 
 
     if(fl_g->choice_rec_codec->value() == CHOICE_MP3)
@@ -1575,6 +1623,7 @@ void choice_rec_bitrate_cb(void)
         }
     }
 
+#ifdef HAVE_LIBFDK_AAC
     if(fl_g->choice_rec_codec->value() == CHOICE_AAC)
     {
         rc = aac_enc_reinit(&aac_rec);
@@ -1590,6 +1639,7 @@ void choice_rec_bitrate_cb(void)
             return;
         }
     }
+#endif
 
     snprintf(text_buf, sizeof(text_buf), "Record bitrate set to: %dk", cfg.rec.bitrate);
     print_info(text_buf, 0);
@@ -1622,14 +1672,18 @@ void choice_cfg_samplerate_cb()
     lame_stream.samplerate = sr_list[sel_sr];
     vorbis_stream.samplerate = sr_list[sel_sr];
     opus_stream.samplerate = sr_list[sel_sr];
+#ifdef HAVE_LIBFDK_AAC
     aac_stream.samplerate = sr_list[sel_sr];
+#endif
+    flac_stream.samplerate = sr_list[sel_sr];
+
 
     if(fl_g->choice_cfg_codec->value() == CHOICE_MP3)
     {
         rc = lame_enc_reinit(&lame_stream);
         if(rc != 0)
         {
-            print_info("Warning:\nThe Sample-/Bitrate combination is invalid", 1);
+            print_info("Warning:\nThe stream Sample-/Bitrate combination is invalid", 1);
             fl_g->choice_cfg_samplerate->value(old_sr);
             fl_g->choice_cfg_samplerate->redraw();
             cfg.audio.samplerate = sr_list[old_sr];
@@ -1660,7 +1714,7 @@ void choice_cfg_samplerate_cb()
         rc = opus_enc_reinit(&opus_stream);
         if(rc != 0)
         {
-            print_info("Warning:\nThe record Sample-/Bitrate combination is invalid", 1);
+            print_info("Warning:\nThe stream Sample-/Bitrate combination is invalid", 1);
             cfg.audio.samplerate = sr_list[old_sr];
             opus_stream.samplerate = sr_list[old_sr]; 
             fl_g->choice_cfg_samplerate->value(old_sr);
@@ -1670,12 +1724,14 @@ void choice_cfg_samplerate_cb()
             return;
         }
     }
+
+#ifdef HAVE_LIBFDK_AAC
     if(fl_g->choice_cfg_codec->value() == CHOICE_AAC)
     {
         rc = aac_enc_reinit(&aac_stream);
         if(rc != 0)
         {
-            print_info("Warning:\nThe record Sample-/Bitrate combination is invalid", 1);
+            print_info("Warning:\nThe stream Sample-/Bitrate combination is invalid", 1);
             cfg.audio.samplerate = sr_list[old_sr];
             aac_stream.samplerate = sr_list[old_sr];
             fl_g->choice_cfg_samplerate->value(old_sr);
@@ -1685,13 +1741,31 @@ void choice_cfg_samplerate_cb()
             return;
         }
     }
-
+#endif
+    
+    if(fl_g->choice_cfg_codec->value() == CHOICE_FLAC)
+    {
+        rc = flac_enc_reinit(&flac_stream);
+        if(rc != 0)
+        {
+            print_info("Warning:\nThe stream Sample-/Bitrate combination is invalid", 1);
+            cfg.audio.samplerate = sr_list[old_sr];
+            flac_stream.samplerate = sr_list[old_sr];
+            fl_g->choice_cfg_samplerate->value(old_sr);
+            fl_g->choice_cfg_samplerate->redraw();
+            flac_enc_reinit(&flac_stream);
+            print_info("The previous values have been set", 1);
+            return;
+        }
+    }
 
     //Reinit record codecs
     lame_rec.samplerate = sr_list[sel_sr];
     vorbis_rec.samplerate = sr_list[sel_sr];
     opus_rec.samplerate = sr_list[sel_sr];
+#ifdef HAVE_LIBFDK_AAC
     aac_rec.samplerate = sr_list[sel_sr];
+#endif
     flac_rec.samplerate = sr_list[sel_sr];
 
     if(fl_g->choice_rec_codec->value() == CHOICE_MP3)
@@ -1748,6 +1822,7 @@ void choice_cfg_samplerate_cb()
         }
     }
 
+#ifdef HAVE_LIBFDK_AAC
     if(fl_g->choice_rec_codec->value() == CHOICE_AAC)
     {
         rc = aac_enc_reinit(&aac_rec);
@@ -1765,9 +1840,9 @@ void choice_cfg_samplerate_cb()
             return;
         }
     }
+#endif
     if(fl_g->choice_rec_codec->value() == CHOICE_FLAC)
     {
-        printf("blub");
         rc = flac_enc_reinit(&flac_rec);
         if(rc != 0)
         {
@@ -1806,7 +1881,11 @@ void choice_cfg_channel_stereo_cb(void)
     lame_stream.channel = 2;
     vorbis_stream.channel = 2;
     opus_stream.channel = 2;
+#ifdef HAVE_LIBFDK_AAC
     aac_stream.channel = 2;
+#endif
+    flac_stream.channel = 2;
+
 
     if(fl_g->choice_cfg_codec->value() == CHOICE_MP3)
         lame_enc_reinit(&lame_stream);
@@ -1814,15 +1893,21 @@ void choice_cfg_channel_stereo_cb(void)
         vorbis_enc_reinit(&vorbis_stream);
     if(fl_g->choice_cfg_codec->value() == CHOICE_OPUS)
         opus_enc_reinit(&opus_stream);
+#ifdef HAVE_LIBFDK_AAC
     if(fl_g->choice_cfg_codec->value() == CHOICE_AAC)
         aac_enc_reinit(&aac_stream);
+#endif
+    if(fl_g->choice_cfg_codec->value() == CHOICE_FLAC)
+        flac_enc_reinit(&flac_stream);
 
 
     // Reinit recording codecs
     lame_rec.channel = 2;
     vorbis_rec.channel = 2;
     opus_rec.channel = 2;
+#ifdef HAVE_LIBFDK_AAC
     aac_rec.channel = 2;
+#endif
     flac_rec.channel = 2;
 
     if(fl_g->choice_rec_codec->value() == CHOICE_MP3)
@@ -1831,8 +1916,10 @@ void choice_cfg_channel_stereo_cb(void)
         vorbis_enc_reinit(&vorbis_rec);
     if(fl_g->choice_rec_codec->value() == CHOICE_OPUS)
         opus_enc_reinit(&opus_rec);
+#ifdef HAVE_LIBFDK_AAC
     if(fl_g->choice_rec_codec->value() == CHOICE_AAC)
         aac_enc_reinit(&aac_rec);
+#endif
     if(fl_g->choice_rec_codec->value() == CHOICE_FLAC)
         flac_enc_reinit(&flac_rec);
 
@@ -1851,7 +1938,10 @@ void choice_cfg_channel_mono_cb(void)
     lame_stream.channel = 1;
     vorbis_stream.channel = 1;
     opus_stream.channel = 1;
+#ifdef HAVE_LIBFDK_AAC
     aac_stream.channel = 1;
+#endif
+    flac_stream.channel = 1;
     
     if(fl_g->choice_cfg_codec->value() == CHOICE_MP3)
         lame_enc_reinit(&lame_stream);
@@ -1859,15 +1949,20 @@ void choice_cfg_channel_mono_cb(void)
         vorbis_enc_reinit(&vorbis_stream);
     if(fl_g->choice_cfg_codec->value() == CHOICE_OPUS)
         opus_enc_reinit(&opus_stream);
+#ifdef HAVE_LIBFDK_AAC
     if(fl_g->choice_cfg_codec->value() == CHOICE_AAC)
         aac_enc_reinit(&aac_stream);
-
+#endif
+    if(fl_g->choice_cfg_codec->value() == CHOICE_FLAC)
+        flac_enc_reinit(&flac_stream);
 
     // Reinit recording codecs
     lame_rec.channel = 1;
     vorbis_rec.channel = 1;
     opus_rec.channel = 1;
+#ifdef HAVE_LIBFDK_AAC
     aac_rec.channel = 1;
+#endif
     flac_rec.channel = 1;
 
     if(fl_g->choice_rec_codec->value() == CHOICE_MP3)
@@ -1876,8 +1971,10 @@ void choice_cfg_channel_mono_cb(void)
         vorbis_enc_reinit(&vorbis_rec);
     if(fl_g->choice_rec_codec->value() == CHOICE_OPUS)
         opus_enc_reinit(&opus_rec);
+#ifdef HAVE_LIBFDK_AAC
     if(fl_g->choice_rec_codec->value() == CHOICE_AAC)
         aac_enc_reinit(&aac_rec);
+#endif
     if(fl_g->choice_rec_codec->value() == CHOICE_FLAC)
         flac_enc_reinit(&flac_rec);
     
@@ -2075,11 +2172,16 @@ void choice_cfg_codec_mp3_cb(void)
             fl_g->choice_cfg_codec->value(CHOICE_OPUS);
         else if (!strcmp(cfg.audio.codec, "aac"))
             fl_g->choice_cfg_codec->value(CHOICE_AAC);
+        else if (!strcmp(cfg.audio.codec, "flac"))
+            fl_g->choice_cfg_codec->value(CHOICE_FLAC);
 
         return;
     }
     strcpy(cfg.audio.codec, "mp3");
     print_info("Stream codec set to mp3", 0);
+    fl_g->choice_cfg_bitrate->activate();
+    fl_g->choice_cfg_bitrate->show();
+
     unsaved_changes = 1;
 }
 
@@ -2096,11 +2198,16 @@ void choice_cfg_codec_ogg_cb(void)
             fl_g->choice_cfg_codec->value(CHOICE_OPUS);
         else if (!strcmp(cfg.audio.codec, "aac"))
             fl_g->choice_cfg_codec->value(CHOICE_AAC);
+        else if (!strcmp(cfg.audio.codec, "flac"))
+            fl_g->choice_cfg_codec->value(CHOICE_FLAC);
 
         return;
     }
     strcpy(cfg.audio.codec, "ogg");
     print_info("Stream codec set to ogg/vorbis", 0);
+    fl_g->choice_cfg_bitrate->activate();
+    fl_g->choice_cfg_bitrate->show();
+
     unsaved_changes = 1;
 }
 
@@ -2117,18 +2224,23 @@ void choice_cfg_codec_opus_cb(void)
             fl_g->choice_cfg_codec->value(CHOICE_OGG);
         else if (!strcmp(cfg.audio.codec, "aac"))
             fl_g->choice_cfg_codec->value(CHOICE_AAC);
+        else if (!strcmp(cfg.audio.codec, "flac"))
+            fl_g->choice_cfg_codec->value(CHOICE_FLAC);
         
         return;
     }
     
     print_info("Stream codec set to opus", 0);
     strcpy(cfg.audio.codec, "opus");
+    fl_g->choice_cfg_bitrate->activate();
+    fl_g->choice_cfg_bitrate->show();
 
     unsaved_changes = 1;
 }
 
 void choice_cfg_codec_aac_cb(void)
 {
+#ifdef HAVE_LIBFDK_AAC
     if(aac_enc_reinit(&aac_stream) != 0)
     {
         print_info("AAC encoder doesn't support current\n"
@@ -2140,11 +2252,43 @@ void choice_cfg_codec_aac_cb(void)
             fl_g->choice_cfg_codec->value(CHOICE_OPUS);
         else if (!strcmp(cfg.audio.codec, "mp3"))
             fl_g->choice_cfg_codec->value(CHOICE_MP3);
+        else if (!strcmp(cfg.audio.codec, "flac"))
+            fl_g->choice_cfg_codec->value(CHOICE_FLAC);
 
         return;
     }
     strcpy(cfg.audio.codec, "aac");
     print_info("Stream codec set to aac", 0);
+    fl_g->choice_cfg_bitrate->activate();
+    fl_g->choice_cfg_bitrate->show();
+
+    unsaved_changes = 1;
+#endif
+}
+
+void choice_cfg_codec_flac_cb(void)
+{
+    if(flac_enc_reinit(&flac_stream) != 0)
+    {
+        print_info("ERROR: While initializing flac settings", 1);
+        
+        if(!strcmp(cfg.audio.codec, "mp3"))
+            fl_g->choice_rec_codec->value(CHOICE_MP3);
+        else if(!strcmp(cfg.audio.codec, "ogg"))
+            fl_g->choice_rec_codec->value(CHOICE_OGG);
+        else if(!strcmp(cfg.audio.codec, "opus"))
+            fl_g->choice_rec_codec->value(CHOICE_OPUS);
+        else if(!strcmp(cfg.audio.codec, "aac"))
+            fl_g->choice_rec_codec->value(CHOICE_AAC);
+        
+        return;
+    }
+    strcpy(cfg.audio.codec, "flac");
+    print_info("Stream codec set to flac", 0);
+    
+    fl_g->choice_cfg_bitrate->hide();
+    fl_g->window_cfg->redraw();
+
     unsaved_changes = 1;
 }
 
@@ -2178,7 +2322,7 @@ void choice_rec_codec_mp3_cb(void)
 
     print_info("Record codec set to mp3", 0);
     fl_g->choice_rec_bitrate->activate();
-    
+    fl_g->choice_rec_bitrate->show();
 
     unsaved_changes = 1;
 }
@@ -2211,6 +2355,7 @@ void choice_rec_codec_ogg_cb(void)
 
     print_info("Record codec set to ogg/vorbis", 0);
     fl_g->choice_rec_bitrate->activate();
+    fl_g->choice_rec_bitrate->show();
 
     unsaved_changes = 1;
 }
@@ -2244,6 +2389,7 @@ void choice_rec_codec_opus_cb(void)
 
     print_info("Record codec set to opus", 0);
     fl_g->choice_rec_bitrate->activate();
+    fl_g->choice_rec_bitrate->show();
 
     unsaved_changes = 1;
 
@@ -2251,6 +2397,7 @@ void choice_rec_codec_opus_cb(void)
 
 void choice_rec_codec_aac_cb(void)
 {
+#ifdef HAVE_LIBFDK_AAC
     if(aac_enc_reinit(&aac_rec) != 0)
     {
         print_info("AAC encoder doesn't support current\n"
@@ -2278,9 +2425,11 @@ void choice_rec_codec_aac_cb(void)
 
     print_info("Record codec set to aac", 0);
     fl_g->choice_rec_bitrate->activate();
-    
+    fl_g->choice_rec_bitrate->show();
+
 
     unsaved_changes = 1;
+#endif
 }
 
 
@@ -2311,16 +2460,16 @@ void choice_rec_codec_flac_cb(void)
     test_file_extension();
 
     print_info("Record codec set to flac", 0);
-    fl_g->choice_rec_bitrate->deactivate();
+    fl_g->choice_rec_bitrate->hide();
+    fl_g->window_cfg->redraw();
 
     unsaved_changes = 1;
 }
 
 void choice_rec_codec_wav_cb(void)
 {
-
- 
-    fl_g->choice_rec_bitrate->deactivate();
+    fl_g->choice_rec_bitrate->hide();
+    fl_g->window_cfg->redraw();
 
     strcpy(cfg.rec.codec, "wav");
 
@@ -2329,7 +2478,6 @@ void choice_rec_codec_wav_cb(void)
     test_file_extension();
 
     print_info("Record codec set to wav", 0);
-
 
     unsaved_changes = 1;
 }
@@ -2814,9 +2962,102 @@ void window_main_close_cb(void)
                 "no", "yes", NULL);
         if(ret == 1)
             cfg_write_file(NULL);				
-
-
     }
 
     exit(0);
+}
+
+void check_cfg_use_app_cb()
+{
+    if(fl_g->check_cfg_use_app->value())
+    {
+        int app = fl_g->choice_cfg_app->value();
+        current_track_app = getCurrentTrackFunctionFromId(app);
+        cfg.main.app_update = 1;
+        cfg.main.app_update_service = app;
+        if(!app_timeout_running)
+        {
+            app_timeout_running = 1;
+            Fl::add_timeout(0.1, &app_timer);
+        }
+    }
+    else
+    {
+        cfg.main.app_update = 0;
+        if(app_timeout_running)
+        {
+            app_timeout_running = 0;
+            Fl::remove_timeout(&app_timer);
+        }
+    }
+    unsaved_changes = true;
+}
+
+void choice_cfg_app_cb()
+{
+    current_track_app = getCurrentTrackFunctionFromId(fl_g->choice_cfg_app->value());
+    cfg.main.app_update_service = fl_g->choice_cfg_app->value();
+    
+    if(app_timeout_running)
+    {
+        Fl::remove_timeout(&app_timer);
+        Fl::add_timeout(0.1, &app_timer);
+    }
+    unsaved_changes = true;
+}
+
+void check_activate_eq_cb(void)
+{
+    cfg.dsp.equalizer = fl_g->check_activate_eq->value();
+    unsaved_changes = 1;
+}
+
+void slider_equalizer1_cb(double v)
+{
+    static char str[10];
+    cfg.dsp.gain1 = v;
+    snprintf(str, 10, "%+.1f", v);
+    fl_g->equalizerGain1->label(str);
+    fl_g->equalizerSlider1->value_cb2(); // updates the tooltip
+    unsaved_changes = 1;
+}
+
+void slider_equalizer2_cb(double v)
+{
+    static char str[10];
+    cfg.dsp.gain2 = v;
+    snprintf(str, 10, "%+.1f", v);
+    fl_g->equalizerGain2->label(str);
+    fl_g->equalizerSlider2->value_cb2();
+    unsaved_changes = 1;
+}
+
+void slider_equalizer3_cb(double v)
+{
+    static char str[10];
+    cfg.dsp.gain3 = v;
+    snprintf(str, 10, "%+.1f", v);
+    fl_g->equalizerGain3->label(str);
+    fl_g->equalizerSlider3->value_cb2();
+    unsaved_changes = 1;
+}
+
+void slider_equalizer4_cb(double v)
+{
+    static char str[10];
+    cfg.dsp.gain4 = v;
+    snprintf(str, 10, "%+.1f", v);
+    fl_g->equalizerGain4->label(str);
+    fl_g->equalizerSlider4->value_cb2();
+    unsaved_changes = 1;
+}
+
+void slider_equalizer5_cb(double v)
+{
+    static char str[10];
+    cfg.dsp.gain5 = v;
+    snprintf(str, 10, "%+.1f", v);
+    fl_g->equalizerGain5->label(str);
+    fl_g->equalizerSlider5->value_cb2(); 
+    unsaved_changes = 1;
 }

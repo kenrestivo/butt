@@ -1,6 +1,6 @@
 // icecast functions for butt
 //
-// Copyright 2007-2008 by Daniel Noethen.
+// Copyright 2007-2018 by Daniel Noethen.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 #ifdef _WIN32
  #include <winsock2.h>
  #define usleep(us) Sleep(us/1000)
- #define close(s) closesocket(s)
+//#define close(s) closesocket(s)
 #else
  #include <sys/types.h>
  #include <sys/socket.h>
@@ -186,12 +186,12 @@ int ic_connect(void)
                 strcmp(cfg.audio.codec, "opus") == 0 ? 48000 : cfg.audio.samplerate);
 
         sock_send(&stream_socket, send_buf, strlen(send_buf), SEND_TIMEOUT);
-
         sock_send(&stream_socket, "\r\n", 2, SEND_TIMEOUT);
 
-        if(sock_recv(&stream_socket, recv_buf, sizeof(recv_buf)-1, RECV_TIMEOUT) == 0)
+        ret = sock_recv(&stream_socket, recv_buf, sizeof(recv_buf)-1, 5*RECV_TIMEOUT);
+        
+        if(ret == 0)
         {
-
             if (try_cnt == 0)
             {
                 ic_disconnect();
@@ -204,7 +204,15 @@ int ic_connect(void)
                 return 1;
             }
         }
-
+        
+        if (ret == SOCK_TIMEOUT)
+        {
+            print_info("\nconnect: connection timed out. Trying again...\n", 1);
+            usleep(100000);
+            ic_disconnect();
+            return 1;
+        }
+        
         //We need to extract the HTTP return value from the HTTP response
         //to see if the login was successfull (HTTP/1.0 200 OK)
         http_retval = strchr(recv_buf, ' ');
@@ -217,6 +225,7 @@ int ic_connect(void)
         //point to the beginning of the HTTP return value
         http_retval++;
         http_retval[3] = '\0';
+        
 
         if((retval = atoi(http_retval)) != 200)
         {
@@ -237,9 +246,11 @@ int ic_connect(void)
                     {
                         ic_disconnect();// This brings compatibility to airtime server. Because they don't understand the PUT method they answer with an 404
                         opus_supported = 1; // Airtimes supports Opus
+                        usleep(100000);
                         continue;       // Let's try the SOURCE method then...
                     }
                     print_info("\nconnect: server answered with 404!\n", 1);
+                    
                     ic_disconnect();
                     return 2;
                     break;
@@ -250,7 +261,6 @@ int ic_connect(void)
                     return 2;
             }
         }
-
         // At this point the connection has been established and encoded data
         // can be send to the server
 
@@ -258,7 +268,7 @@ int ic_connect(void)
         // the server
         if(!strcmp(cfg.audio.codec, "opus"))
         {
-            if (opus_supported == 1) // The server has at least version 2.4.0 (PUT method worked) or it is an airtime server, thus opus is supported.
+            if (opus_supported == 1) // The server has at least version 2.4.0 (PUT method worked) or it is an airtime server -> opus is supported.
             {
                 break;
             }

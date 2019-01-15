@@ -36,6 +36,10 @@
 		3CC6F2BE19083488001993B1 /* vu_meter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CC6F2A919083488001993B1 /* vu_meter.cpp */; };
 		3CC6F2BF19083488001993B1 /* wav_header.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CC6F2AB19083488001993B1 /* wav_header.cpp */; };
 		3CC899811926A7CE008A414B /* fl_timer_funcs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CC8997F1926A7CE008A414B /* fl_timer_funcs.cpp */; };
+		3CDE88D621CFC45400CDA211 /* dsp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CDE88D221CFC45400CDA211 /* dsp.cpp */; };
+		3CDE88D721CFC45400CDA211 /* Biquad.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CDE88D521CFC45400CDA211 /* Biquad.cpp */; };
+		3CDE88DA21D0EF6D00CDA211 /* CurrentTrackOSX.m in Sources */ = {isa = PBXBuildFile; fileRef = 3CDE88D921D0EF6D00CDA211 /* CurrentTrackOSX.m */; };
+		3CDE88E021D0F4F300CDA211 /* ScriptingBridge.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3CDE88DF21D0F4F300CDA211 /* ScriptingBridge.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -112,6 +116,14 @@
 		3CC8997F1926A7CE008A414B /* fl_timer_funcs.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = fl_timer_funcs.cpp; path = ../src/FLTK/fl_timer_funcs.cpp; sourceTree = "<group>"; };
 		3CC899801926A7CE008A414B /* fl_timer_funcs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = fl_timer_funcs.h; path = ../src/FLTK/fl_timer_funcs.h; sourceTree = "<group>"; };
 		3CD4B90B190E85C400035EA8 /* Fl_My_Value_Slider.H */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = Fl_My_Value_Slider.H; sourceTree = "<group>"; };
+		3CDE88D221CFC45400CDA211 /* dsp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = dsp.cpp; path = ../src/dsp.cpp; sourceTree = "<group>"; };
+		3CDE88D321CFC45400CDA211 /* dsp.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = dsp.hpp; path = ../src/dsp.hpp; sourceTree = "<group>"; };
+		3CDE88D421CFC45400CDA211 /* Biquad.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Biquad.h; path = ../src/Biquad.h; sourceTree = "<group>"; };
+		3CDE88D521CFC45400CDA211 /* Biquad.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Biquad.cpp; path = ../src/Biquad.cpp; sourceTree = "<group>"; };
+		3CDE88D821D0EF6D00CDA211 /* CurrentTrackOSX.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = CurrentTrackOSX.h; path = ../src/CurrentTrackOSX.h; sourceTree = "<group>"; };
+		3CDE88D921D0EF6D00CDA211 /* CurrentTrackOSX.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = CurrentTrackOSX.m; path = ../src/CurrentTrackOSX.m; sourceTree = "<group>"; };
+		3CDE88DB21D0F18A00CDA211 /* currentTrack.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = currentTrack.h; path = ../src/currentTrack.h; sourceTree = "<group>"; };
+		3CDE88DF21D0F4F300CDA211 /* ScriptingBridge.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ScriptingBridge.framework; path = System/Library/Frameworks/ScriptingBridge.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -119,6 +131,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3CDE88E021D0F4F300CDA211 /* ScriptingBridge.framework in Frameworks */,
 				3C69A6BB189E7EDD001CBFBA /* AudioToolbox.framework in Frameworks */,
 				3C69A6BC189E7EDD001CBFBA /* AudioUnit.framework in Frameworks */,
 				3C69A6BD189E7EDD001CBFBA /* Cocoa.framework in Frameworks */,
@@ -132,6 +145,13 @@
 		3C69A669189E7D72001CBFBA = {
 			isa = PBXGroup;
 			children = (
+				3CDE88DB21D0F18A00CDA211 /* currentTrack.h */,
+				3CDE88D821D0EF6D00CDA211 /* CurrentTrackOSX.h */,
+				3CDE88D921D0EF6D00CDA211 /* CurrentTrackOSX.m */,
+				3CDE88D521CFC45400CDA211 /* Biquad.cpp */,
+				3CDE88D421CFC45400CDA211 /* Biquad.h */,
+				3CDE88D221CFC45400CDA211 /* dsp.cpp */,
+				3CDE88D321CFC45400CDA211 /* dsp.hpp */,
 				3CC085F31CF848B00025B9E2 /* aac_encode.cpp */,
 				3CC085F21CF848B00025B9E2 /* aac_encode.h */,
 				3C69A6B7189E7EDD001CBFBA /* AudioToolbox.framework */,
@@ -179,6 +199,7 @@
 				3CC6F2AA19083488001993B1 /* vu_meter.h */,
 				3CC6F2AB19083488001993B1 /* wav_header.cpp */,
 				3CC6F2AC19083488001993B1 /* wav_header.h */,
+				3CDE88DE21D0F4F300CDA211 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -219,6 +240,14 @@
 				3CC6F28619083487001993B1 /* Fl_My_Double_Window.H */,
 			);
 			path = FL;
+			sourceTree = "<group>";
+		};
+		3CDE88DE21D0F4F300CDA211 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				3CDE88DF21D0F4F300CDA211 /* ScriptingBridge.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -273,10 +302,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				3C74136F1939241400211C26 /* opus_encode.cpp in Sources */,
+				3CDE88D621CFC45400CDA211 /* dsp.cpp in Sources */,
 				3CC6F2AE19083488001993B1 /* cfg.cpp in Sources */,
 				3CC6F2B019083488001993B1 /* fl_funcs.cpp in Sources */,
 				3CC6F2BE19083488001993B1 /* vu_meter.cpp in Sources */,
 				3CC6F2AD19083488001993B1 /* butt.cpp in Sources */,
+				3CDE88DA21D0EF6D00CDA211 /* CurrentTrackOSX.m in Sources */,
 				3CC6F2B919083488001993B1 /* sockfuncs.cpp in Sources */,
 				3CC6F2B219083488001993B1 /* flgui.cpp in Sources */,
 				3CC6F2B819083488001993B1 /* shoutcast.cpp in Sources */,
@@ -285,6 +316,7 @@
 				3CC6F2BC19083488001993B1 /* util.cpp in Sources */,
 				3C0CC7F81A49FAD60079F4B5 /* flac_encode.cpp in Sources */,
 				3CC6F2BF19083488001993B1 /* wav_header.cpp in Sources */,
+				3CDE88D721CFC45400CDA211 /* Biquad.cpp in Sources */,
 				3CC6F2B419083488001993B1 /* lame_encode.cpp in Sources */,
 				3CC6F2B519083488001993B1 /* parseconfig.cpp in Sources */,
 				3CA2FA031912A9B8004CBD2C /* Fl_My_Native_File_Chooser.cxx in Sources */,
@@ -347,7 +379,7 @@
 					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
 					..,
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.5;
+				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_CFLAGS = "";
 				OTHER_CPLUSPLUSFLAGS = (
@@ -404,7 +436,7 @@
 					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
 					..,
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.5;
+				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				OTHER_CFLAGS = "";
 				OTHER_CPLUSPLUSFLAGS = (
 					"$(OTHER_CFLAGS)",
@@ -423,10 +455,13 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = YES;
+				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_OBJC_ARC = NO;
 				GCC_INPUT_FILETYPE = sourcecode.cpp.objcpp;
+				GCC_PREPROCESSOR_DEFINITIONS = "DEBUG=1";
 				LIBRARY_SEARCH_PATHS = ./lib;
 				MACH_O_TYPE = mh_execute;
+				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				OTHER_LDFLAGS = "";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				USER_HEADER_SEARCH_PATHS = ./include;
@@ -437,11 +472,13 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = YES;
+				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_OBJC_ARC = NO;
 				GCC_INPUT_FILETYPE = sourcecode.cpp.objcpp;
 				GCC_PREPROCESSOR_DEFINITIONS = "";
 				LIBRARY_SEARCH_PATHS = ./lib;
 				MACH_O_TYPE = mh_execute;
+				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				OTHER_LDFLAGS = "";
 				"OTHER_LDFLAGS[arch=*]" = (
 					./lib/libmp3lame.a,

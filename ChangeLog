@@ -1,12 +1,24 @@
+Version 0.1.17 (2018-12-27)
+---------------------------
+* added support for FLAC streaming (icecast only)
+* added 5-band equalizer (thanks to Melchor Garau Madrigal)
+* added the ability to read song informations from several apps on MacOS and Linux (thanks to Melchor Garau Madrigal)
+* window title is automatically renamed to the connected server (useful when running multiple instances)
+* fixed connection issue with airtime
+* fixed integer overflow when gain is set too high
+* fixed compilation error on ubuntu 18
+* changed color of windows icon from black to yellow. So people using Win10 can now find butt in their black taskbar ;-)
+
+
 Version 0.1.16 (2017-09-17)
 ---------------------------
 * fixed compatibility issues with shoutcast v2.5.5.732 
 * replaced portaudio by newest stable version v190600_20161030
-* when using AAC+ the best AAC profile for the selected bitrate is used automatically
-  AAC+v2: bitrate < 48kBit/s				(aac_aot = 29)
-  AAC+v1: 48 kBit/s <= bitrate < 96kBit/s	(aac_aot = 5)
-  AAC-LC: bitrate >= 96kBit/s				(aac_aot = 2)
-* you can force the AAC codec to a specific profile by setting
+* when using AAC+ the best AAC profile for the current bitrate is selected automatically +
+  AAC+v2: bitrate < 48kBit/s				(aac_aot = 29) +
+  AAC+v1: 48 kBit/s \<= bitrate < 96kBit/s	(aac_aot = 5) +
+  AAC-LC: bitrate >= 96kBit/s				(aac_aot = 2) +
+* you can force the AAC codec to a specific profile by setting 
   aac_overwrite_aot = 1 and aac_aot to the appropriate aot value {2,5,29} in buttrc
 
 

@@ -1,6 +1,6 @@
 // FLTK GUI related functions
 //
-// Copyright 2007-2008 by Daniel Noethen.
+// Copyright 2007-2018 by Daniel Noethen.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -23,6 +23,10 @@ void cfg_win_pos_timer(void*);
 void songfile_timer(void*);
 void split_recording_timer(void*);
 void display_rotate_timer(void*);
+void app_timer(void*);
+
+extern const char* (*current_track_app)(void);
+
 
 #endif
 

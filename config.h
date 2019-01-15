@@ -1,6 +1,9 @@
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Use dbus to get current tracks */
+#define HAVE_DBUS 1
+
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
 
@@ -130,7 +133,7 @@
 #define PACKAGE_NAME "butt"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "butt 0.1.16"
+#define PACKAGE_STRING "butt 0.1.17"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "butt"
@@ -139,13 +142,13 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "0.1.16"
+#define PACKAGE_VERSION "0.1.17"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
 
 /* Version number of package */
-#define VERSION "0.1.16"
+#define VERSION "0.1.17"
 
 /* Define to `__inline__' or `__inline' if that's what the C compiler
    calls it, or to nothing if 'inline' is not supported under any name.  */

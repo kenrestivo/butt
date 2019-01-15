@@ -1,6 +1,6 @@
 // portaudio functions for butt
 //
-// Copyright 2007-2008 by Daniel Noethen.
+// Copyright 2007-2018 by Daniel Noethen.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@
 #include "vu_meter.h"
 #include "flgui.h"
 #include "fl_funcs.h"
-
+#include "dsp.hpp"
 
 int pa_frames = 2048;
 
@@ -74,6 +74,8 @@ pthread_mutex_t stream_mut, rec_mut;
 pthread_cond_t  stream_cond, rec_cond;
 
 PaStream *stream;
+
+static DSPEffects* dsp = NULL;
 
 int snd_init(void)
 {
@@ -200,6 +202,8 @@ int snd_open_stream(void)
         return 1;
     }
 
+    dsp = new DSPEffects(pa_frames, cfg.audio.channel, samplerate);
+
     
     Pa_StartStream(stream);
     return 0;
@@ -248,9 +252,7 @@ void *snd_stream_thread(void *data)
         xc_send = &sc_send;
     else //Icecast
         xc_send = &ic_send;
-
-    FILE *fd;
-
+    
     while(connected)
     {
 
@@ -282,6 +284,7 @@ void *snd_stream_thread(void *data)
 
             }
         }
+#ifdef HAVE_LIBFDK_AAC
         else if(!strcmp(cfg.audio.codec, "aac"))
         {
             bytes_to_read = aac_stream.info.frameLength * cfg.audio.channel * sizeof(short);
@@ -301,7 +304,8 @@ void *snd_stream_thread(void *data)
 
             }
         }
-        else // ogg and mp3 need more data than opus in order to compress the audio data
+#endif
+        else // ogg, mp3 and flac need more data than opus in order to compress the audio data
         {
             if(rb_filled(&stream_rb) < framepacket_size*sizeof(short))
                 continue;
@@ -317,6 +321,14 @@ void *snd_stream_thread(void *data)
             if(!strcmp(cfg.audio.codec, "ogg"))
                 encode_bytes_read = vorbis_enc_encode(&vorbis_stream, (short*)audio_buf, 
                         enc_buf, rb_bytes_read/(2*cfg.audio.channel));
+            
+            if(!strcmp(cfg.audio.codec, "flac"))
+            {
+                encode_bytes_read = flac_enc_encode_stream(&flac_stream, (short*)audio_buf, (uint8_t*)enc_buf, rb_bytes_read/sizeof(short)/cfg.audio.channel, cfg.audio.channel);
+                
+                if (encode_bytes_read == 0)
+                    continue;
+            }
 
             if((sent = xc_send(enc_buf, encode_bytes_read)) == -1)
                 connected = 0; 
@@ -326,6 +338,7 @@ void *snd_stream_thread(void *data)
         }
     }
 
+    
     free(enc_buf);
     free(audio_buf);
 
@@ -434,6 +447,7 @@ void* snd_rec_thread(void *data)
                 kbytes_written += fwrite(enc_buf, 1, enc_bytes_read, cfg.rec.fd)/1024.0;
             }
         }
+#ifdef HAVE_LIBFDK_AAC
         else if(!strcmp(cfg.rec.codec, "aac"))
         {
 
@@ -447,6 +461,7 @@ void* snd_rec_thread(void *data)
                 kbytes_written += fwrite(enc_buf, 1, enc_bytes_read, cfg.rec.fd)/1024.0;
             }
         }
+#endif
         else
         {
 
@@ -528,12 +543,8 @@ int snd_callback(const void *input,
     memcpy(pa_pcm_buf, input, frameCount*cfg.audio.channel*sizeof(short));
     samplerate_out = cfg.audio.samplerate;
 
-    if (cfg.main.gain != 1)
-    {
-        for(i = 0; i < framepacket_size; i++)
-        {
-            pa_pcm_buf[i] *= cfg.main.gain;
-        }
+    if(dsp->hasToProcessSamples()) {
+        dsp->processSamples(pa_pcm_buf);
     }
 	
 	if (streaming)
@@ -551,7 +562,7 @@ int snd_callback(const void *input,
             srconv_stream.input_frames = frameCount;
             srconv_stream.output_frames = frameCount*cfg.audio.channel * (srconv_stream.src_ratio+1) * sizeof(float);
 
-            src_short_to_float_array((short*)pa_pcm_buf, srconv_stream.data_in, frameCount*cfg.audio.channel);
+            src_short_to_float_array((short*)pa_pcm_buf, (float*)srconv_stream.data_in, frameCount*cfg.audio.channel);
 
             //The actual resample process
             src_process(srconv_state_stream, &srconv_stream);
@@ -582,7 +593,7 @@ int snd_callback(const void *input,
             srconv_record.input_frames = frameCount;
             srconv_record.output_frames = frameCount*cfg.audio.channel * (srconv_record.src_ratio+1) * sizeof(float);
 
-            src_short_to_float_array((short*)pa_pcm_buf, srconv_record.data_in, frameCount*cfg.audio.channel);
+            src_short_to_float_array((short*)pa_pcm_buf, (float*)srconv_record.data_in, frameCount*cfg.audio.channel);
 
             //The actual resample process
             src_process(srconv_state_record, &srconv_record);
@@ -773,10 +784,10 @@ void snd_close(void)
     Pa_CloseStream(stream);
     Pa_Terminate();
 
-    free(srconv_stream.data_in);
+    free((void*)srconv_stream.data_in);
     free(srconv_stream.data_out);
 
-    free(srconv_record.data_in);
+    free((void*)srconv_record.data_in);
     free(srconv_record.data_out);
 
     free(pa_pcm_buf);

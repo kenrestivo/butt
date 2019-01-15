@@ -1,8 +1,4 @@
-////
-execute as "asciidoc manual.txt"
-////
-
-butt (0.1.15) Manual 
+butt (0.1.17) Manual 
 ====================
 :author: Daniel Nöthen
 :doctype: book 
@@ -33,18 +29,21 @@ installer pages. +
 The default installation path might be unusual, but this way it is possible to install +
 butt without administration rights. +
 
-.Ubuntu:
-Butt depends on the following packages and their dependencies: +
-'portaudio19-dev', 'libvorbis-dev', 'libfltk1.3-dev', 'libmp3lame-dev' +
-'libflac-dev', 'libsamplerate-dev', 'libopus-dev' +
+.Linux/MinGW (Windows):
+First of all the following libraries have to be installed on your system  +
+'fltk-1.3', 'portaudio19', 'libmp3lame', 'libvorbis', 'libogg', 'libflac', 'libopus', 'libsamplerate', 'libfdk-aac', 'libdbus-1' +
+They are quite common and should be included in every popular linux distribution. +
 
-Install the .deb package with +
-+dpkg --install butt_<version>-0ubuntu1_amd64.deb+ +
+On *Ubuntu* you can install them with +
+`sudo apt-get install libfltk1.3-dev portaudio19-dev libopus-dev libmp3lame-dev libvorbis-dev 
+libogg-dev libflac-dev libfdk-aac-dev libdbus-1-dev libsamplerate0-dev`
 
-.Linux/MinGW:
-First of all you need to have the following libraries installed on your system  +
-'fltk-1.3', 'portaudio', 'libmp3lame', 'libvorbis', 'libogg', 'libFLAC', 'libopus', 'libsamplerate', 'libfdk-aac' +
-They are quite common and should be included in every linux distribution +
+On Distributions which don't have libfdk-aac like *debian* 
+you can compile without aac support with: +
+`./configure --disable-aac` 
+
+For compiling on *Windows* I recommend the msys2 x64 (www.msys2.org) environment. They have all the needed packages in their pacman repository. Additionally you need to install the `libwinpthread-git` package. Make sure that you select the x64 version of each package.
+
 
 After installing the above libraries you can install butt from source as usual:
 
@@ -52,11 +51,18 @@ After installing the above libraries you can install butt from source as usual:
 
 - +cd butt-<version>+
 
+- +autoreconf -i+ (only on Windows/MSYS2)
+
 - +./configure+
 
 - +make+
 
 - +sudo make install+
+
+In case the included configure script or the make process fails on your system, try to create a new configure script by invoking:
+`autoreconf -i`
+and start with  `./configure` again.
+
 
 
 Quick start
@@ -196,12 +202,8 @@ remove the configuration file from '/Users/<username>/.buttrc' +
 .Windows: 
 Run the Uninstaller from the butt folder in your windows start menu. +
 
-.Ubuntu:
-Run +sudo apt-get uninstall butt+ and +
-remove the configuration file from '/home/<username>/.buttrc' +
-
 .Linux/MinGW: 
-Run +sudo make uninstall+ from the source tree. and +
+Run +sudo make uninstall+ from the source tree and +
 remove the configuration file from '/home/<username>/.buttrc' +
 
 
@@ -210,6 +212,6 @@ Contact
 butt at danielnoethen dot de
 
 
-Will code for food
-------------------
+Donate
+--------
 Paypal: bipak@gmx.net

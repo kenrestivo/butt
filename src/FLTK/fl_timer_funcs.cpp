@@ -1,6 +1,6 @@
 // FLTK GUI related functions
 //
-// Copyright 2007-2008 by Daniel Noethen.
+// Copyright 2007-2018 by Daniel Noethen.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -38,6 +38,13 @@
 #include "icecast.h"
 #include "strfuncs.h"
 #include "fl_timer_funcs.h"
+
+#if __APPLE__ && __MACH__
+ #include "CurrentTrackOSX.h"
+#endif
+
+const char* (*current_track_app)(void);
+
 
 void vu_meter_timer(void*)
 {
@@ -323,11 +330,46 @@ void songfile_timer(void*)
 
        cfg.main.song = (char*) realloc(cfg.main.song, strlen(song) +1);
        strcpy(cfg.main.song, song);
-       button_cfg_song_go_cb();
+       update_song();
    }
 
    fclose(cfg.main.song_fd);
 
 exit:
     Fl::repeat_timeout(repeat_time, &songfile_timer);
+}
+
+void app_timer(void*)
+{
+    if(!app_timeout_running)
+    {
+        Fl::remove_timeout(&app_timer);
+        return;
+    }
+    
+    if(current_track_app != NULL)
+    {
+        const char* track = current_track_app();
+        if(track != NULL)
+        {
+            if(cfg.main.song == NULL || strcmp(cfg.main.song, track))
+            {
+                cfg.main.song = (char*) realloc(cfg.main.song, strlen(track) + 1);
+                strcpy(cfg.main.song, track);
+                update_song();
+            }
+            free((void*)track);
+        }
+        else
+        {
+            if(cfg.main.song != NULL && strcmp(cfg.main.song, ""))
+            {
+                cfg.main.song = (char*) realloc(cfg.main.song, 1);
+                strcpy(cfg.main.song, "");
+                update_song();
+            }
+        }
+    }
+    
+    Fl::repeat_timeout(1, &app_timer);
 }

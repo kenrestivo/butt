@@ -1,6 +1,6 @@
 // config functions for butt
 //
-// Copyright 2007-2008 by Daniel Noethen.
+// Copyright 2007-2018 by Daniel Noethen.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -82,12 +82,14 @@ typedef struct
         char *song_path;
         FILE *song_fd;
         int song_update;   //1 = song info will be read from file
+        int app_update;
+        int app_update_service;
         int num_of_srv;
         int num_of_icy;
         int bg_color, txt_color;
-	int connect_at_startup;
+        int connect_at_startup;
         float gain;
-	char *log_file;
+        char *log_file;
 
     }main;
 
@@ -125,12 +127,18 @@ typedef struct
         int sync_to_hour;
 
     }rec;
+    
+    struct
+    {
+        int equalizer;
+        double gain1, gain2, gain3, gain4, gain5;
+    }dsp;
 
     struct
     {
         int attach;
         int ontop;
-	int lcd_auto;
+        int lcd_auto;
     }gui;
 
     server_t **srv;

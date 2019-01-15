@@ -13,7 +13,7 @@ butt without administration rights.
 UBUNTU:
 Butt depends on the following packages and their dependencies:
 portaudio19-dev, libvorbis-dev, libfltk1.3-dev, libmp3lame-dev, 
-libfdk-aac-dev, libopus-dev, libsamplerate-dev, libogg-dev, libFLAC-dev
+libfdk-aac-dev, libopus-dev, libsamplerate-dev, libogg-dev, libflac-dev
 
 Install the .deb package with
 dpkg --install butt_<version>-0ubuntu1_amd64.deb

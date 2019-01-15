@@ -12,14 +12,14 @@ class flgui {open
   } {
     Fl_Window window_main {
       callback {window_main_close_cb();} open
-      xywh {659 127 430 380} type Double resizable
+      xywh {659 127 430 380} type Double hide resizable
       code0 {\#include "FL/Fl_My_Double_Window.H"}
       code1 {\#include <stdlib.h> 
 \#include "config.h"}
       code2 {\#include "flgui.h"
 \#include "fl_timer_funcs.h"}
       code3 {window_main->size_range(430, 155, 430);}
-      class Fl_My_Double_Window visible
+      class Fl_My_Double_Window
     } {
       Fl_Slider slider_gain {
         callback {slider_gain_cb();}
@@ -207,12 +207,12 @@ class flgui {open
       label {butt settings}
       callback {window_cfg->hide();
 button_cfg->label("Settings@>");} open
-      xywh {1097 131 295 450} type Double
+      xywh {1707 136 305 450} type Double
       code0 {\#include "FL/Fl_My_Double_Window.H"}
       class Fl_My_Double_Window size_range {280 380 330 380} visible
     } {
       Fl_Tabs Settings {open
-        xywh {-1 0 301 520} selection_color 41
+        xywh {0 0 341 520} selection_color 41
       } {
         Fl_Group {} {
           label Main open selected
@@ -354,9 +354,14 @@ button_cfg->label("Settings@>");} open
                 callback {choice_cfg_codec_opus_cb();}
                 xywh {70 70 40 25}
               }
-              MenuItem {} {
+              MenuItem menu_item_cfg_aac {
                 label {AAC+}
                 callback {choice_cfg_codec_aac_cb();}
+                xywh {80 80 40 25}
+              }
+              MenuItem {} {
+                label FLAC
+                callback {choice_cfg_codec_flac_cb();}
                 xywh {80 80 40 25}
               }
             }
@@ -458,7 +463,7 @@ button_cfg->label("Settings@>");} open
                 callback {choice_rec_codec_opus_cb();}
                 xywh {15 15 31 20}
               }
-              MenuItem {} {
+              MenuItem menu_item_rec_aac {
                 label {AAC+}
                 callback {choice_rec_codec_aac_cb();}
                 xywh {90 90 40 25}
@@ -601,7 +606,7 @@ else
         }
         Fl_Group {} {
           label Stream open
-          xywh {0 19 300 450} hide
+          xywh {0 19 315 450} hide
         } {
           Fl_Group {} {
             label {Update song name from file} open
@@ -624,27 +629,41 @@ else
           }
           Fl_Group {} {
             label {Update song name manually} open
-            xywh {15 149 265 40} box ENGRAVED_FRAME align 5
+            xywh {15 245 265 40} box ENGRAVED_FRAME align 5
           } {
             Fl_Input input_cfg_song {
               callback {input_cfg_song_cb();}
-              tooltip {Current song name} xywh {20 157 225 25} align 5
+              tooltip {Current song name} xywh {20 253 225 25} align 5
               code0 {this->input_cfg_song->maximum_size(500);}
             }
             Fl_Button {} {
               label OK
               callback {button_cfg_song_go_cb();}
-              tooltip {Send current song name to the server} xywh {250 157 25 25} box ENGRAVED_BOX shortcut 0xff0d labelsize 12
+              tooltip {Send current song name to the server} xywh {250 253 25 25} box ENGRAVED_BOX shortcut 0xff0d labelsize 12
             }
           }
           Fl_Check_Button check_cfg_connect {
-            label {Start streaming at startup}
+            label {Start streaming after opening}
             callback {check_cfg_connect_cb();}
-            tooltip {Connect automatically to a server at startup} xywh {15 202 159 18} down_box DOWN_BOX
+            tooltip {Connect automatically to a server at startup} xywh {15 345 205 18} down_box DOWN_BOX
+          }
+          Fl_Group {} {
+            label {Update song name from application} open
+            xywh {15 149 265 65} box ENGRAVED_BOX align 5
+          } {
+            Fl_Check_Button check_cfg_use_app {
+              label Activate
+              callback {check_cfg_use_app_cb();}
+              xywh {18 179 85 33} down_box DOWN_BOX
+            }
+            Fl_Choice choice_cfg_app {
+              callback {choice_cfg_app_cb();} open
+              tooltip {Changes the song through an running application} xywh {20 160 200 20} down_box BORDER_BOX
+            } {}
           }
         }
         Fl_Group {} {
-          label Record open
+          label Record
           xywh {0 19 300 450} hide
         } {
           Fl_Input input_rec_filename {
@@ -694,7 +713,86 @@ else
           }
         }
         Fl_Group {} {
-          label GUI open
+          label DSP open
+          xywh {0 19 300 455} hide
+        } {
+          Fl_Group {} {
+            label {Equalizer [dB]} open
+            xywh {12 43 268 175} box ENGRAVED_FRAME align 5
+          } {
+            Fl_Check_Button check_activate_eq {
+              label Activate
+              callback {check_activate_eq_cb();}
+              xywh {20 45 79 25} down_box DOWN_BOX
+            }
+            Fl_Slider equalizerSlider1 {
+              label 100Hz
+              callback {slider_equalizer1_cb(o->value());}
+              xywh {25 85 15 115} type {Vert Knob} box NO_BOX labelsize 11 minimum 15 maximum -15 step 0.1
+              class Fl_My_Value_Slider
+            }
+            Fl_Slider equalizerSlider2 {
+              label 350Hz
+              callback {slider_equalizer2_cb(o->value());}
+              xywh {65 85 15 115} type {Vert Knob} box NO_BOX labelsize 11 minimum 15 maximum -15 step 0.1
+              class Fl_My_Value_Slider
+            }
+            Fl_Slider equalizerSlider3 {
+              label 1kHz
+              callback {slider_equalizer3_cb(o->value());}
+              xywh {105 85 15 115} type {Vert Knob} box NO_BOX labelsize 11 minimum 15 maximum -15 step 0.1
+              class Fl_My_Value_Slider
+            }
+            Fl_Slider equalizerSlider4 {
+              label {3.5kHz}
+              callback {slider_equalizer4_cb(o->value());}
+              xywh {145 85 15 115} type {Vert Knob} box NO_BOX labelsize 11 minimum 15 maximum -15 step 0.1
+              class Fl_My_Value_Slider
+            }
+            Fl_Slider equalizerSlider5 {
+              label 10kHz
+              callback {slider_equalizer5_cb(o->value());}
+              xywh {185 85 15 115} type {Vert Knob} box NO_BOX labelsize 11 minimum 15 maximum -15 step 0.1
+              class Fl_My_Value_Slider
+            }
+            Fl_Text_Display equalizerGain1 {
+              label {+0.0}
+              xywh {12 85 35 10} box NO_BOX labelsize 11
+            }
+            Fl_Text_Display equalizerGain2 {
+              label {+0.0}
+              xywh {52 85 35 10} box NO_BOX labelsize 11
+            }
+            Fl_Text_Display equalizerGain3 {
+              label {+0.0}
+              xywh {92 85 35 10} box NO_BOX labelsize 11
+            }
+            Fl_Text_Display equalizerGain4 {
+              label {+0.0}
+              xywh {131 85 35 10} box NO_BOX labelsize 11
+            }
+            Fl_Text_Display equalizerGain5 {
+              label {+0.0}
+              xywh {171 85 35 10} box NO_BOX labelsize 11
+            }
+            Fl_Button {} {
+              label Reset
+              callback {fl_g->equalizerSlider1->value(0);
+fl_g->equalizerSlider2->value(0);
+fl_g->equalizerSlider3->value(0);
+fl_g->equalizerSlider4->value(0);
+fl_g->equalizerSlider5->value(0);
+slider_equalizer1_cb(0);
+slider_equalizer2_cb(0);
+slider_equalizer3_cb(0);
+slider_equalizer4_cb(0);
+slider_equalizer5_cb(0);}
+              xywh {210 130 60 25} labelsize 12
+            }
+          }
+        }
+        Fl_Group {} {
+          label GUI
           xywh {0 19 300 450} hide
         } {
           Fl_Group {} {
@@ -870,6 +968,8 @@ window_cfg->size(window_cfg->w(), 380);
 info_visible = 1;
                 
 info_output->show();
+
+
 button_info->label("Less @8>");} {}
   }
   Function {~flgui()} {open

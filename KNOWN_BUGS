@@ -1,4 +1,3 @@
-When "stay on top" is activated the tooltip of the gain slider is hidden
-behind the window, thus its not visible.
+When "stay on top" is activated some tooltips are hidden their parent window.
 
 Please report bugs to butt@danielnoethen.de

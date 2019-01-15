@@ -1,6 +1,6 @@
 // FLTK GUI related functions
 //
-// Copyright 2007-2008 by Daniel Noethen.
+// Copyright 2007-2018 by Daniel Noethen.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -45,6 +45,11 @@ void fill_cfg_widgets(void)
     int bitrate[] = { 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112,
                     128, 160, 192, 224, 256, 320, 0 };
 
+
+#ifndef HAVE_LIBFDK_AAC
+    fl_g->menu_item_cfg_aac->hide();
+    fl_g->menu_item_rec_aac->hide();
+#endif
   
     //fill the main section
     for(i = 0; i < cfg.audio.dev_count; i++)
@@ -91,7 +96,7 @@ void fill_cfg_widgets(void)
     fl_g->check_cfg_connect->value(cfg.main.connect_at_startup);
     fl_g->input_log_filename->value(cfg.main.log_file);
 
-    //fill the audio (stream) section
+    //fill the audio section
     if(!strcmp(cfg.audio.codec, "mp3"))
         fl_g->choice_cfg_codec->value(CHOICE_MP3);
     else if(!strcmp(cfg.audio.codec, "ogg"))
@@ -100,8 +105,13 @@ void fill_cfg_widgets(void)
         fl_g->choice_cfg_codec->value(CHOICE_OPUS);
     else if(!strcmp(cfg.audio.codec, "aac"))
         fl_g->choice_cfg_codec->value(CHOICE_AAC);
+    else if(!strcmp(cfg.audio.codec, "flac"))
+    {
+        fl_g->choice_cfg_codec->value(CHOICE_FLAC);
+        fl_g->choice_cfg_bitrate->hide();
 
-
+    }
+    
     if(cfg.audio.channel == 1)
         fl_g->choice_cfg_channel->value(CHOICE_MONO);
     else
@@ -118,14 +128,39 @@ void fill_cfg_widgets(void)
 
     fl_g->choice_cfg_resample_mode->value(cfg.audio.resample_mode);
     
-
+    // Fill stream section
     if(cfg.main.song_update)
         fl_g->check_song_update_active->value(1);
     else
         fl_g->check_song_update_active->value(0);
 
     fl_g->input_cfg_song_file->value(cfg.main.song_path);
-
+    
+    
+#if __APPLE__ && __MACH__
+    fl_g->choice_cfg_app->add("iTunes");
+    fl_g->choice_cfg_app->add("Spotify");
+    fl_g->choice_cfg_app->add("VOX");
+    fl_g->check_cfg_use_app->value(cfg.main.app_update);
+    fl_g->choice_cfg_app->value(cfg.main.app_update_service);
+#elif __linux__ && HAVE_DBUS
+    fl_g->choice_cfg_app->add("Rhythmbox");
+    fl_g->choice_cfg_app->add("Banshee");
+    fl_g->choice_cfg_app->add("Clementine");
+    fl_g->choice_cfg_app->add("Spotify");
+    fl_g->choice_cfg_app->add("Cantata");
+    fl_g->check_cfg_use_app->value(cfg.main.app_update);
+    fl_g->choice_cfg_app->value(cfg.main.app_update_service);
+#elif _WIN32
+    fl_g->choice_cfg_app->add("Not supported on Windows");
+    fl_g->choice_cfg_app->value(0);
+    fl_g->check_cfg_use_app->value(0);
+    fl_g->check_cfg_use_app->deactivate();
+    fl_g->choice_cfg_app->deactivate();
+#endif
+    
+    
+    
     //fill the record section
     fl_g->input_rec_filename->value(cfg.rec.filename);
     fl_g->input_rec_folder->value(cfg.rec.folder);
@@ -142,12 +177,12 @@ void fill_cfg_widgets(void)
     else if(!strcmp(cfg.rec.codec, "flac"))
     {
         fl_g->choice_rec_codec->value(CHOICE_FLAC);
-        fl_g->choice_rec_bitrate->deactivate();
+        fl_g->choice_rec_bitrate->hide();
     }
     else //wav
     {
         fl_g->choice_rec_codec->value(CHOICE_WAV);
-        fl_g->choice_rec_bitrate->deactivate();
+        fl_g->choice_rec_bitrate->hide();
     }
 
     for(i = 0; bitrate[i] != 0; i++)
@@ -164,9 +199,26 @@ void fill_cfg_widgets(void)
     else
         fl_g->check_sync_to_full_hour->value(0);
 
-
     update_samplerates();
-
+    
+    //fill the DSP section
+    fl_g->check_activate_eq->value(cfg.dsp.equalizer);
+    
+    slider_equalizer1_cb(cfg.dsp.gain1);
+    fl_g->equalizerSlider1->value(cfg.dsp.gain1);
+    
+    slider_equalizer2_cb(cfg.dsp.gain2);
+    fl_g->equalizerSlider2->value(cfg.dsp.gain2);
+    
+    slider_equalizer3_cb(cfg.dsp.gain3);
+    fl_g->equalizerSlider3->value(cfg.dsp.gain3);
+    
+    slider_equalizer4_cb(cfg.dsp.gain4);
+    fl_g->equalizerSlider4->value(cfg.dsp.gain4);
+    
+    slider_equalizer5_cb(cfg.dsp.gain5);
+    fl_g->equalizerSlider5->value(cfg.dsp.gain5);
+    
     //fill the GUI section
     fl_g->button_gui_bg_color->color(cfg.main.bg_color,
             fl_lighter((Fl_Color)cfg.main.bg_color));
@@ -180,6 +232,8 @@ void fill_cfg_widgets(void)
         fl_g->window_cfg->stay_on_top(1);
     }
     fl_g->check_gui_lcd_auto->value(cfg.gui.lcd_auto);
+    
+    unsaved_changes = false;
 }
 
 //Updates the samplerate drop down menu for the audio
@@ -374,6 +428,7 @@ void init_main_gui_and_audio(void)
     opus_rec.samplerate = cfg.audio.samplerate;
     opus_enc_reinit(&opus_rec);
 
+#ifdef HAVE_LIBFDK_AAC
     aac_stream.channel = cfg.audio.channel;
     aac_stream.bitrate = cfg.audio.bitrate;
     aac_stream.samplerate = cfg.audio.samplerate;
@@ -385,9 +440,16 @@ void init_main_gui_and_audio(void)
     aac_rec.samplerate = cfg.audio.samplerate;
     aac_rec.aot = cfg.audio.aac_aot; 
     aac_enc_reinit(&aac_rec);
+#endif
+    
+    flac_stream.channel = cfg.audio.channel;
+    flac_stream.samplerate = cfg.audio.samplerate;
+    flac_stream.enc_type = FLAC_ENC_TYPE_STREAM;
+    flac_enc_reinit(&flac_stream);
 
     flac_rec.channel = cfg.audio.channel;
     flac_rec.samplerate = cfg.audio.samplerate;
+    flac_rec.enc_type = FLAC_ENC_TYPE_REC;
     flac_enc_reinit(&flac_rec);
 }
 

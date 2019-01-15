@@ -1,3 +1,18 @@
+// vu-meter functions for butt
+//
+// Copyright 2007-2018 by Daniel Noethen.
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2, or (at your option)
+// any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+//
 #include <math.h>
 #include "flgui.h"
 
@@ -102,15 +117,9 @@ void vu_meter(short left, short right)
 
 
     // Convert the 16bit integer values into dB values
-    if (left > 0)
-        left_db = -(20 * log10(32768/(float)left))+VU_OFFSET;
-    else
-        left_db = -1000; //-inf
-
-    if (right > 0)
-        right_db = -(20 * log10(32768/(float)right))+VU_OFFSET;
-    else
-        right_db = -1000;
+    left_db = -(20 * log10(32768/(float)left))+VU_OFFSET;
+    right_db = -(20 * log10(32768/(float)right))+VU_OFFSET;
+   
 
     
     // Activate all LEDs whose threshold is exceeded by the input sample

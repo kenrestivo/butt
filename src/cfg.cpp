@@ -1,6 +1,6 @@
 // config functions for butt
 //
-// Copyright 2007-2008 by Daniel Noethen.
+// Copyright 2007-2018 by Daniel Noethen.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -97,6 +97,9 @@ int cfg_write_file(char *path)
         fprintf(cfg_fd, "song_path = \n");
 
     fprintf(cfg_fd, "song_update = %d\n", cfg.main.song_update);
+    
+    fprintf(cfg_fd, "app_update_service = %d\n", cfg.main.app_update_service);
+    fprintf(cfg_fd, "app_update = %d\n", cfg.main.app_update);
 
     fprintf(cfg_fd, "gain = %f\n", cfg.main.gain);
 
@@ -146,6 +149,22 @@ int cfg_write_file(char *path)
             cfg.rec.filename,
             cfg.rec.folder
            );
+    
+    fprintf(cfg_fd,
+            "[dsp]\n"
+            "equalizer = %d\n"
+            "gain1 = %f\n"
+            "gain2 = %f\n"
+            "gain3 = %f\n"
+            "gain4 = %f\n"
+            "gain5 = %f\n\n",
+            cfg.dsp.equalizer,
+            cfg.dsp.gain1,
+            cfg.dsp.gain2,
+            cfg.dsp.gain3,
+            cfg.dsp.gain4,
+            cfg.dsp.gain5
+            );
 
     fprintf(cfg_fd,
             "[gui]\n"
@@ -293,8 +312,10 @@ int cfg_set_values(char *path)
     if(cfg.audio.aac_overwrite_aot == -1)
         cfg.audio.aac_overwrite_aot = 0;
     
+#ifdef HAVE_LIBFDK_AAC
     aac_stream.overwrite_aot = cfg.audio.aac_overwrite_aot;
     aac_rec.overwrite_aot = cfg.audio.aac_overwrite_aot;
+#endif
 
     if(cfg.audio.aac_aot == -1)
         cfg.audio.aac_aot = 5;
@@ -504,6 +525,13 @@ int cfg_set_values(char *path)
     cfg.main.song_update = cfg_get_int("main", "song_update");
     if(cfg.main.song_update == -1)
         cfg.main.song_update = 0; //song update from file is default set to off
+    
+    cfg.main.app_update = cfg_get_int("main", "app_update");
+    cfg.main.app_update_service = cfg_get_int("main", "app_update_service");
+    if(cfg.main.app_update == -1)
+        cfg.main.app_update = 0; //Default value, off
+    if(cfg.main.app_update_service == -1)
+        cfg.main.app_update_service = 0; //Default value, first one
 
 	cfg.main.connect_at_startup = cfg_get_int("main", "connect_at_startup");
 	if(cfg.main.connect_at_startup == -1)
@@ -517,7 +545,32 @@ int cfg_set_values(char *path)
     else if(cfg.main.gain < 0)
         cfg.main.gain = util_db_to_factor(-24);
 
+    // DSP
+    cfg.dsp.equalizer = cfg_get_int("dsp", "equalizer");
+    if (cfg.dsp.equalizer == -1)
+        cfg.dsp.equalizer = 0;
+    
+    cfg.dsp.gain1 = cfg_get_float("dsp", "gain1");
+    if (cfg.dsp.gain1 == -1)
+        cfg.dsp.gain1 = 0.0;
+    
+    cfg.dsp.gain2 = cfg_get_float("dsp", "gain2");
+    if (cfg.dsp.gain2 == -1)
+        cfg.dsp.gain2 = 0.0;
+    
+    cfg.dsp.gain3 = cfg_get_float("dsp", "gain3");
+    if (cfg.dsp.gain3 == -1)
+        cfg.dsp.gain3 = 0.0;
+    
+    cfg.dsp.gain4 = cfg_get_float("dsp", "gain4");
+    if (cfg.dsp.gain4 == -1)
+        cfg.dsp.gain4 = 0.0;
+    
+    cfg.dsp.gain5 = cfg_get_float("dsp", "gain5");
+    if (cfg.dsp.gain5 == -1)
+        cfg.dsp.gain5 = 0.0;
 
+    
     //read GUI stuff 
     cfg.gui.attach = cfg_get_int("gui", "attach");
     if(cfg.gui.attach == -1)
@@ -617,6 +670,15 @@ int cfg_create_default(void)
             "filename = rec_%%Y%%m%%d-%%H%%M%%S.mp3\n"
             "folder = %s\n\n", def_rec_folder
            );
+    
+    fprintf(cfg_fd,
+            "[dsp]\n"
+            "equalizer = 0\n"
+            "gain1 = 0.0\n"
+            "gain2 = 0.0\n"
+            "gain3 = 0.0\n"
+            "gain4 = 0.0\n"
+            "gain5 = 0.0\n");
 
     fprintf(cfg_fd, 
             "[gui]\n"

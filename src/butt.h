@@ -1,6 +1,6 @@
 // butt - broadcast using this tool
 //
-// Copyright 2007-2008 by Daniel Noethen.
+// Copyright 2007-2018 by Daniel Noethen.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 #ifndef BUTT_H
 #define BUTT_H
 
+#include "config.h"
 #include "timer.h"
 #include "lame_encode.h"
 #include "vorbis_encode.h"
@@ -30,6 +31,8 @@ extern bool disconnect;     //TRUE if butt should disconnect
 extern bool try_connect;    //but will try to connect to a server while TRUE
 extern bool streaming;
 extern bool song_timeout_running; //TRUE if automatic song updating is running
+extern bool app_timeout_running;  //TRUE if automatic song updating from some app is running
+
 
 extern int stream_socket;
 extern double kbytes_sent;
@@ -47,7 +50,10 @@ extern vorbis_enc vorbis_rec;
 extern opus_enc opus_stream;
 extern opus_enc opus_rec;
 extern flac_enc flac_rec;
-extern aac_enc aac_stream;
-extern aac_enc aac_rec;
+extern flac_enc flac_stream;
+#ifdef HAVE_LIBFDK_AAC
+ extern aac_enc aac_stream;
+ extern aac_enc aac_rec;
+#endif
 
 #endif

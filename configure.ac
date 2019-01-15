@@ -2,17 +2,22 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.68])
-AC_INIT([butt], [0.1.16], [BUG-REPORT-ADDRESS])
+AC_INIT([butt], [0.1.17], [BUG-REPORT-ADDRESS])
 AM_INIT_AUTOMAKE([subdir-objects foreign])
+AC_CANONICAL_HOST
 
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADERS([config.h])
-
 # Checks for programs.
 AC_PROG_CXX
 AC_PROG_CC
+AC_PROG_OBJC
+
 
 LDFLAGS="$LDFLAGS -L/usr/local/lib"
+
+AC_ARG_ENABLE([aac],
+    AS_HELP_STRING([--disable-aac], [Disable aac support]))
 
 # Checks for libraries.
 AC_CHECK_LIB([ogg], [ogg_stream_init], [],
@@ -44,9 +49,11 @@ AC_CHECK_LIB([samplerate], [src_new], [],
 		[AC_MSG_ERROR([**** Could not find samplerate     ****])]
 	    )
 
+AS_IF([test "x$enable_aac" != "xno"], [
 AC_CHECK_LIB([fdk-aac], [aacEncOpen], [],
 		[AC_MSG_ERROR([**** Could not find libfdk-aac     ****])]
 	    )
+])
 
 AC_CHECK_HEADER([winsock2.h], 
 		[
@@ -55,6 +62,35 @@ AC_CHECK_HEADER([winsock2.h],
 		],
 	       )
 AM_CONDITIONAL(WINDOWS, test "$host_os" = "windows")
+
+
+build_linux=no
+build_windows=no
+build_mac=no
+
+# Detect the target system
+case "${host_os}" in
+    linux*)
+        build_linux=yes
+        AC_MSG_NOTICE([Linux detected])
+        ;;
+    cygwin*|mingw*|windows)
+        build_windows=yes
+        AC_MSG_NOTICE([Windows detected])
+        ;;
+    darwin*)
+        build_mac=yes
+        AC_MSG_NOTICE([MacOS detected])
+        ;;
+    *)
+        AC_MSG_ERROR(["OS $host_os is not supported"])
+        ;;
+esac
+
+# Pass the conditionals to automake
+AM_CONDITIONAL([LINUX], [test "$build_linux" = "yes"])
+AM_CONDITIONAL([WINDOWS], [test "$build_windows" = "yes"])
+AM_CONDITIONAL([OSX], [test "$build_mac" = "yes"])
 
 AC_CHECK_PROG([FLTKCONFIG],[fltk-config], [fltk-config])
 
@@ -71,6 +107,19 @@ else
 fi
 
 
+#Add dbus library for Linux
+if test "$build_linux" = "yes"; then
+	AC_MSG_NOTICE([])
+	PKG_CHECK_MODULES([DBUS], [dbus-1], [
+		AC_DEFINE([HAVE_DBUS], [1], [Use dbus to get current tracks])
+		LIBS="$LIBS $DBUS_LIBS"
+		CFLAGS="$LIBS $DBUS_CFLAGS"
+		CXXFLAGS="$CXXFLAGS $DBUS_CFLAGS"
+	], [
+		AC_DEFINE([HAVE_DBUS], [0], [Use dbus to get current tracks])
+		AC_MSG_ERROR([**** Coud not find dbus dev files])
+	])
+fi
 
 # Checks for header files.
 AC_PATH_X

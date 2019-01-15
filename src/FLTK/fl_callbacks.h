@@ -1,6 +1,6 @@
 // FLTK callback functions for butt
 //
-// Copyright 2007-2008 by Daniel Noethen.
+// Copyright 2007-2018 by Daniel Noethen.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -44,6 +44,7 @@ void choice_cfg_codec_mp3_cb(void);
 void choice_cfg_codec_ogg_cb(void);
 void choice_cfg_codec_opus_cb(void);
 void choice_cfg_codec_aac_cb(void);
+void choice_cfg_codec_flac_cb(void);
 void button_cfg_export_cb(void);
 void button_cfg_import_cb(void);
 void button_add_icy_save_cb(void);
@@ -94,6 +95,13 @@ void button_gui_text_color_cb(void);
 
 void slider_gain_cb(void);
 
+void check_activate_eq_cb(void);
+void slider_equalizer1_cb(double);
+void slider_equalizer2_cb(double);
+void slider_equalizer3_cb(double);
+void slider_equalizer4_cb(double);
+void slider_equalizer5_cb(double);
+
 void check_cfg_rec_cb(void);
 void check_cfg_rec_hourly_cb(void);
 void check_cfg_connect_cb(void);
@@ -101,6 +109,11 @@ void check_cfg_connect_cb(void);
 void lcd_rotate(void*);
 void ILM216_cb(void);
 void window_main_close_cb(void);
+
+void check_cfg_use_app_cb(void);
+void choice_cfg_app_cb(void);
+
+void update_song(void);
 
 #endif
 

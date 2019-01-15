@@ -1,8 +1,10 @@
-This file contains the most importand news of butt 0.1.14
-* added FLAC support for recording 
-* added Opus support (thanks to oneman)
-* added logfile support (thanks to mikko)
-* fixed icecast and shoutcast meta data handling
-* removed possible memleaks
+This file contains the most importand news of butt 0.1.17
+* added support for FLAC streaming (icecast only)
+* added 5-band equalizer (thanks to Melchor Garau Madrigal)
+* added the ability to read song informations from several apps on MacOS and Linux (thanks to Melchor Garau Madrigal)
+* window title is automatically renamed to the connected server (useful when running multiple instances)
+* fixed connection issue with airtime
+* fixed integer overflow when gain is set too high
+* fixed compilation error on ubuntu 18
 
 Refer to ChangeLog for more details

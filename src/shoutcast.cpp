@@ -1,6 +1,6 @@
 // shoutcast functions for butt
 //
-// Copyright 2007-2008 by Daniel Noethen.
+// Copyright 2007-2018 by Daniel Noethen.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -147,8 +147,16 @@ int sc_connect(void)
     
     sock_send(&stream_socket, "\r\n\r\n", 4, SEND_TIMEOUT);
 
-    if((ret = sock_recv(&stream_socket, recv_buf, sizeof(recv_buf)-1, RECV_TIMEOUT)) == 0)
+    if((ret = sock_recv(&stream_socket, recv_buf, sizeof(recv_buf)-1, 5*RECV_TIMEOUT)) == 0)
     {
+        usleep(100*1000);
+        sc_disconnect();
+        return 1;
+    }
+    
+    if (ret == SOCK_TIMEOUT)
+    {
+        print_info("\nconnect: connection timed out. Trying again...\n", 1);
         usleep(100*1000);
         sc_disconnect();
         return 1;

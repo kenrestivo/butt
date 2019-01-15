@@ -14,3 +14,4 @@ src/butt
 src/FLTK/flgui.cpp
 src/FLTK/flgui.h
 *.orig
+*.a
