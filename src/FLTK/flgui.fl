@@ -24,7 +24,7 @@ class flgui {open
 }
 
 exit(0);}
-      xywh {548 425 430 340} type Double resizable
+      xywh {13 365 440 365} type Double resizable
       code0 {\#include "FL/Fl_My_Double_Window.H"}
       code1 {\#include <stdlib.h>}
       code2 {\#include "config.h"}
@@ -206,8 +206,8 @@ else
     Fl_Window window_cfg {
       label {butt settings}
       callback {window_cfg->hide();
-button_cfg->label("Settings@>");}
-      xywh {218 368 225 340} type Double resizable
+button_cfg->label("Settings@>");} selected
+      xywh {566 309 240 375} type Double resizable
       code0 {\#include "FL/Fl_My_Double_Window.H"}
       class Fl_My_Double_Window size_range {224 340 225 340} visible
     } {
@@ -275,7 +275,7 @@ button_cfg->label("Settings@>");}
           }
         }
         Fl_Group {} {
-          label Stream open
+          label Stream
           xywh {0 19 230 340} hide
         } {
           Fl_Group {} {
@@ -567,8 +567,8 @@ button_cfg->label("Settings@>");}
       }
     }
     Fl_Window window_add_srv {
-      label {Add server} open
-      xywh {4 207 190 390} type Double modal visible
+      label {Add server}
+      xywh {431 61 205 400} type Double modal visible
     } {
       Fl_Input input_add_srv_name {
         label {Name:}
@@ -578,54 +578,48 @@ button_cfg->label("Settings@>");}
         label {Address:}
         xywh {10 108 172 25} align 5
       }
-      Fl_Input input_add_srv_user {
-        label {User::}
-        xywh {10 165 172 25} align 5
-      }
       Fl_Input input_add_srv_port {
         label {Port:}
-        xywh {10 215 175 25} type Int align 5
+        xywh {10 158 175 25} type Int align 5
       }
       Fl_Input input_add_srv_pwd {
         label {Password:}
-        xywh {10 265 145 25} type Secret align 5
+        xywh {10 255 145 25} type Secret align 5
       }
       Fl_Input input_add_srv_mount {
         label {Mountpoint:}
-        xywh {10 315 172 25} align 5
+        xywh {10 300 172 25} align 5
       }
-      Fl_Group {} {open
+      Fl_Group {} {
         xywh {9 2 181 49}
         code0 {radio_add_srv_shoutcast->value(1);}
-        code1 {input_add_srv_mount->deactivate();input_add_srv_user->deactivate();}
+        code1 {input_add_srv_mount->deactivate();}
       } {
         Fl_Round_Button radio_add_srv_shoutcast {
           label ShoutCast
-          callback {input_add_srv_mount->deactivate();
-input_add_srv_user->deactivate();}
+          callback {input_add_srv_mount->deactivate();}
           xywh {9 10 88 27} type Radio down_box ROUND_DOWN_BOX
         }
         Fl_Round_Button radio_add_srv_icecast {
           label IceCast
-          callback {input_add_srv_mount->activate();
-input_add_srv_user->activate();} selected
+          callback {input_add_srv_mount->activate();}
           xywh {108 10 76 29} type Radio down_box ROUND_DOWN_BOX
         }
       }
       Fl_Button {} {
         label {&Cancel}
         callback {button_add_srv_cancel_cb();}
-        xywh {15 350 74 25} box ENGRAVED_BOX
+        xywh {15 330 74 25} box ENGRAVED_BOX
       }
       Fl_Button button_add_srv_add {
         label {&ADD}
         callback {button_add_srv_add_cb();}
-        xywh {105 350 74 25} box ENGRAVED_BOX
+        xywh {110 330 74 25} box ENGRAVED_BOX
       }
       Fl_Button button_add_srv_save {
         label {&Save}
         callback {button_add_srv_save_cb();}
-        xywh {105 350 74 25} box ENGRAVED_BOX
+        xywh {110 330 74 25} box ENGRAVED_BOX
       }
       Fl_Button button_cfg_show_pw {
         label S
@@ -641,12 +635,16 @@ else
 	input_add_srv_pwd->redraw();
 	button_cfg_show_pw->label("S");
 }}
-        tooltip {show/hide password} xywh {159 265 25 25} box ENGRAVED_BOX
+        tooltip {show/hide password} xywh {159 255 25 25} box ENGRAVED_BOX
+      }
+      Fl_Input input_add_srv_user {
+        label {User:}
+        xywh {10 206 170 24} align 5
       }
     }
     Fl_Window window_add_icy {
       label {Add server info}
-      xywh {1237 140 305 340} type Double hide modal
+      xywh {24 39 325 350} type Double modal visible
     } {
       Fl_Input input_add_icy_name {
         label {Name:}

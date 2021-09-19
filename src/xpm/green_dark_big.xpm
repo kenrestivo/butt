@@ -1,5 +1,5 @@
 /* XPM */
-static const char * green_dark_big_xpm[] = {
+static char * green_dark_big_xpm[] = {
 "55 55 110 2",
 "  	c None",
 ". 	c #204C20",

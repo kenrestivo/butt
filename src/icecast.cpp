@@ -49,7 +49,6 @@ int ic_connect()
     char b64_auth[200];
     char recv_buf[250];
     char send_buf[250];
-    char user[] = "source";
     char *http_retval;
 
     stream_socket = sock_connect(cfg.srv[cfg.selected_srv]->addr,
@@ -93,7 +92,7 @@ int ic_connect()
 
     sock_send(&stream_socket, send_buf, strlen(send_buf), SEND_TIMEOUT);
 
-    snprintf(auth, sizeof(auth), "%s:%s", cfg.srv[cfg.selected_srv]->user, cfg.srv[cfg.selected_srv]->pwd);
+    snprintf(auth, sizeof(auth), "%s:%s", cfg.srv[cfg.selected_srv]->pwd, cfg.srv[cfg.selected_srv]->pwd);
     snprintf(b64_auth, sizeof(b64_auth), util_base64_enc(auth));
     snprintf(send_buf, sizeof(send_buf), "Authorization: Basic %s\r\n", b64_auth);
     sock_send(&stream_socket, send_buf, strlen(send_buf), SEND_TIMEOUT);

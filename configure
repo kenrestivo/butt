@@ -68,22 +68,22 @@ EOF
         then
             echo "OK"
             echo "#_______________________" >&4
-                [ "$STATIC" -eq 0 ] && echo "LIBS+= -lportaudio" >&4
-                echo "" >&4
-                echo "CXXFLAGS+=$pa_header" >&4
-                echo "LDFLAGS+=$pa_lib" >&4
-            else
-                echo "FAILED"
-                echo "ABORT: butt requires PortAudio v19"
-                echo ""
-                exit 1
-            fi
+            [ "$STATIC" -eq 0 ] && echo "LIBS+= -lportaudio" >&4
+            echo "" >&4
+            echo "CXXFLAGS+=$pa_header" >&4
+            echo "LDFLAGS+=$pa_lib" >&4
         else
             echo "FAILED"
             echo "ABORT: butt requires PortAudio v19"
             echo ""
             exit 1
         fi
+    else
+        echo "FAILED"
+        echo "ABORT: butt requires PortAudio v19"
+        echo ""
+        exit 1
+    fi
 
 }
 
@@ -91,7 +91,7 @@ EOF
 check_fltk() {
 
 
-cat << EOF >tmp.c
+    cat << EOF >tmp.c
 #include <FL/Fl_Double_Window.H>
 
 int main() {
@@ -101,7 +101,7 @@ return 0;
 }
 EOF
 
-cat << EOF >tmp2.c
+    cat << EOF >tmp2.c
 #include <FL/Fl_Button.H>
 
 int main() {
@@ -113,53 +113,53 @@ return 0;
 }
 EOF
 
-msg_chkfor "fltk-config"
-if which fltk-config 1> /dev/null 2>&3
-then
-    echo "OK"
-    msg_chkfor "compile with fltk"
-    if ${CXX} -c tmp.c -o /dev/null `fltk-config --cxxflags` 2>&3
+    msg_chkfor "fltk-config"
+    if which fltk-config 1> /dev/null 2>&3
     then
-        echo "OK"
-        msg_chkfor "fltk has FL_GTK_UP_BOX"
-        if ${CXX} -c tmp2.c -o /dev/null `fltk-config --cxxflags` 2>&3
-        then
+	echo "OK"
+	msg_chkfor "compile with fltk"
+	if ${CXX} -c tmp.c -o /dev/null `fltk-config --cxxflags` 2>&3
+	then
             echo "OK"
-            msg_chkfor "link with fltk"
-            if ${CXX} tmp.c -o /dev/null `fltk-config --cxxflags` `fltk-config --ldflags` 2>&3
+            msg_chkfor "fltk has FL_GTK_UP_BOX"
+            if ${CXX} -c tmp2.c -o /dev/null `fltk-config --cxxflags` 2>&3
             then
-                echo "OK"
-                echo "#_______________________" >&4
-                echo "WITH_FLTK:=1" >&4
-                echo "CXXFLAGS_FLTK:=`fltk-config --cxxflags` -DFLTK1" >&4
-                echo "LIBS_FLTK:=`fltk-config --use-images --ldstaticflags`" >&4
-                echo "SRC_FLTK:=FLTK/fl_callbacks.cpp FLTK/fl_funcs.cpp FLTK/flgui.cpp FLTK/Fl_ILM216.cpp FLTK/Fl_Native_File_Chooser.cpp" >&4
-                echo "" >&4
-                GUI=FLTK
+		echo "OK"
+		msg_chkfor "link with fltk"
+		if ${CXX} tmp.c -o /dev/null `fltk-config --cxxflags` `fltk-config --ldflags` 2>&3
+		then
+                    echo "OK"
+                    echo "#_______________________" >&4
+                    echo "WITH_FLTK:=1" >&4
+                    echo "CXXFLAGS_FLTK:=`fltk-config --cxxflags` -DFLTK1" >&4
+                    echo "LIBS_FLTK:=`fltk-config --use-images --ldstaticflags`" >&4
+                    echo "SRC_FLTK:=FLTK/fl_callbacks.cpp FLTK/fl_funcs.cpp FLTK/flgui.cpp FLTK/Fl_ILM216.cpp FLTK/Fl_Native_File_Chooser.cpp" >&4
+                    echo "" >&4
+                    GUI=FLTK
+		else
+                    echo "FAILED"
+                    echo "can't link against fltk. See config.log for more details"
+                    rm config.mk
+                    exit 1
+		fi
             else
-                echo "FAILED"
-                echo "can't link against fltk. See config.log for more details"
-                rm config.mk
-                exit 1
+		echo "FAILED"
+		echo "You need at least fltk version 1.1.8"
+		exit 1
             fi
-        else
+	else
             echo "FAILED"
-            echo "You need at least fltk version 1.1.8"
+            echo "can'compile with fltk. See config.log for more details"
+            rm config.mk
             exit 1
-        fi
-    else
-        echo "FAILED"
-        echo "can'compile with fltk. See config.log for more details"
-        rm config.mk
-        exit 1
-    fi
+	fi
 
-else
-    echo "FAILED"
-    echo "fltk-config was not found on your PC"
-    rm config.mk
-    exit 1
-fi
+    else
+	echo "FAILED"
+	echo "fltk-config was not found on your PC"
+	rm config.mk
+	exit 1
+    fi
 
 }
 
@@ -193,22 +193,22 @@ EOF
         then
             echo "OK"
             echo "#_______________________" >&4
-                echo "WITH_LIBLAME:=1" >&4
-                echo "CXXFLAGS_LIBLAME:=" >&4
-                echo "CXXFLAGS+=$lame_header" >&4
-                echo "LDFLAGS+=$lame_lib" >&4
-                [ "$STATIC" -eq 0 ] && echo "LIBS_LIBLAME:=-lmp3lame" >&4
-                echo "SRC_LIBLAME:=lame_encode.cpp" >&4
-                echo "" >&4
-                MP3=1
-            else
-                echo "FAILED"
-                echo "WITH_LIBLAME:=0" >&4
-            fi
+            echo "WITH_LIBLAME:=1" >&4
+            echo "CXXFLAGS_LIBLAME:=" >&4
+            echo "CXXFLAGS+=$lame_header" >&4
+            echo "LDFLAGS+=$lame_lib" >&4
+            [ "$STATIC" -eq 0 ] && echo "LIBS_LIBLAME:=-lmp3lame" >&4
+            echo "SRC_LIBLAME:=lame_encode.cpp" >&4
+            echo "" >&4
+            MP3=1
         else
             echo "FAILED"
             echo "WITH_LIBLAME:=0" >&4
         fi
+    else
+        echo "FAILED"
+        echo "WITH_LIBLAME:=0" >&4
+    fi
 }
 check_libvorbis() {
 
@@ -231,22 +231,22 @@ EOF
         then
             echo "OK"
             echo "#_______________________" >&4
-                echo "WITH_LIBVORBIS:=1" >&4
-                echo "CXXFLAGS_LIBVORBIS:=" >&4
-                echo "CXXFLAGS+=$vorbis_header" >&4
-                echo "LDFLAGS+=$vorbis_lib" >&4
-                [ "$STATIC" -eq 0 ] && echo "LIBS_LIBVORBIS:=-lvorbisenc" >&4
-                echo "SRC_LIBVORBIS:=vorbis_encode.cpp" >&4
-                echo "" >&4
-                OGG=1
-            else
-                echo "FAILED"
-                echo "WITH_LIBVORBIS:=0" >&4
-            fi
+            echo "WITH_LIBVORBIS:=1" >&4
+            echo "CXXFLAGS_LIBVORBIS:=" >&4
+            echo "CXXFLAGS+=$vorbis_header" >&4
+            echo "LDFLAGS+=$vorbis_lib" >&4
+            [ "$STATIC" -eq 0 ] && echo "LIBS_LIBVORBIS:=-lvorbisenc" >&4
+            echo "SRC_LIBVORBIS:=vorbis_encode.cpp" >&4
+            echo "" >&4
+            OGG=1
         else
             echo "FAILED"
             echo "WITH_LIBVORBIS:=0" >&4
         fi
+    else
+        echo "FAILED"
+        echo "WITH_LIBVORBIS:=0" >&4
+    fi
 }
 
 
@@ -257,8 +257,8 @@ while [ $# -gt 0 ]
 do
     case $1 in
 
-    --help)
-        cat <<EOF
+	--help)
+            cat <<EOF
 
     Options for configure:
 
@@ -281,100 +281,100 @@ EOF
             exit 0
             ;;
 
-    --with-fltk) CHECK_FLTK=1;;
-    --with-qt) CHECK_QT=1 CHECK_FLTK=0;;
-    --with-ogg) CHECK_LIBVORBIS=1;;
-    --without-ogg) CHECK_LIBVORBIS=0;;
-    --with-mp3) CHECK_LIBLAME=1;;
-    --without-mp3) CHECK_LIBLAME=0;;
-    --static) STATIC=1;;
+	--with-fltk) CHECK_FLTK=1;;
+	--with-qt) CHECK_QT=1 CHECK_FLTK=0;;
+	--with-ogg) CHECK_LIBVORBIS=1;;
+	--without-ogg) CHECK_LIBVORBIS=0;;
+	--with-mp3) CHECK_LIBLAME=1;;
+	--without-mp3) CHECK_LIBLAME=0;;
+	--static) STATIC=1;;
 
-    --prefix)
-        shift
-        if [ $# -gt 0 ]
-        then
-            prefix=$1
-        else
-            echo "error, missing argument for --prefix."
-            exit 1
-        fi
-        ;;
+	--prefix)
+            shift
+            if [ $# -gt 0 ]
+            then
+		prefix=$1
+            else
+		echo "error, missing argument for --prefix."
+		exit 1
+            fi
+            ;;
 
-    --pa-header)
-        shift
-        if [ $# -gt 0 ]
-        then
-            pa_header="-I$1"
-        else
-            echo "error, missing argument for --pa-header."
-            exit 1
-        fi
-        ;;
+	--pa-header)
+            shift
+            if [ $# -gt 0 ]
+            then
+		pa_header="-I$1"
+            else
+		echo "error, missing argument for --pa-header."
+		exit 1
+            fi
+            ;;
 
-    --pa-lib)
-        shift
-        if [ $# -gt 0 ]
-        then
-            pa_lib="-L$1"
-        else
-            echo "error, missing argument for --pa-lib."
-            exit 1
-        fi
-        ;;
+	--pa-lib)
+            shift
+            if [ $# -gt 0 ]
+            then
+		pa_lib="-L$1"
+            else
+		echo "error, missing argument for --pa-lib."
+		exit 1
+            fi
+            ;;
 
-    --lame-header)
-        shift
-        if [ $# -gt 0 ]
-        then
-            lame_header="-I$1"
-        else
-            echo "error, missing argument for --lame-header."
-            exit 1
-        fi
-        ;;
+	--lame-header)
+            shift
+            if [ $# -gt 0 ]
+            then
+		lame_header="-I$1"
+            else
+		echo "error, missing argument for --lame-header."
+		exit 1
+            fi
+            ;;
 
-    --lame-lib)
-        shift
-        if [ $# -gt 0 ]
-        then
-            lame_lib="-L$1"
-        else
-            echo "error, missing argument for --lame-lib."
-            exit 1
-        fi
-        ;;
+	--lame-lib)
+            shift
+            if [ $# -gt 0 ]
+            then
+		lame_lib="-L$1"
+            else
+		echo "error, missing argument for --lame-lib."
+		exit 1
+            fi
+            ;;
 
-    --vorbis-header)
-        shift
-        if [ $# -gt 0 ]
-        then
-            vorbis_header="-I$1"
-        else
-            echo "error, missing argument for --vorbis-header."
-            exit 1
-        fi
-        ;;
+	--vorbis-header)
+            shift
+            if [ $# -gt 0 ]
+            then
+		vorbis_header="-I$1"
+            else
+		echo "error, missing argument for --vorbis-header."
+		exit 1
+            fi
+            ;;
 
-    --vorbis-lib)
-        shift
-        if [ $# -gt 0 ]
-        then
-            vorbis_lib="-L$1"
-        else
-            echo "error, missing argument for --vorbis-lib."
-            exit 1
-        fi
-        ;;
+	--vorbis-lib)
+            shift
+            if [ $# -gt 0 ]
+            then
+		vorbis_lib="-L$1"
+            else
+		echo "error, missing argument for --vorbis-lib."
+		exit 1
+            fi
+            ;;
 
-    --debug)
-        CXXFLAGS="${CXXFLAGS} -g"
-        LDFLAGS="${LDFLAGS} -g"
-        ;;
+	--debug)
+            CXXFLAGS="${CXXFLAGS} -g"
+            LDFLAGS="${LDFLAGS} -g"
+            ;;
 
         *)
             echo "error, invalid argument: $1"
             exit 1
-        ;;
+            ;;
     esac
     shift
 done
@@ -387,8 +387,8 @@ exec 4> config.mk
 
 echo "# butts's config.mk" >&4
 echo "#_______________________" >&4
-echo "DIST_VER=butt-0.1.13" >&4
-echo "VERSION=\\\"butt-0.1.13\\\"" >&4
+echo "DIST_VER=butt-0.1.12" >&4
+echo "VERSION=\\\"butt-0.1.12\\\"" >&4
 echo "prefix=$prefix" >&4
 echo "CXX=${CXX}" >&4
 echo "CXXFLAGS=${CXXFLAGS}" >&4
@@ -420,7 +420,11 @@ check_portaudio
 [ "$CHECK_LIBVORBIS" -eq 1 ] && check_libvorbis
 [ "$CHECK_LIBLAME" -eq 1 ] && check_libmp3lame
 
-[ "$STATIC" -eq 1 ] && echo "LDFLAGS += -lasound -lpthread -L.. ../libstdc++.a /usr/lib/libshout.a /usr/lib/libvorbisenc.a /usr/lib/libvorbis.a /usr/lib/libogg.a /usr/lib/libmp3lame.a /usr/lib/libportaudio.a /usr/lib/libjack.a /usr/lib/librt.a" >&4
+if [ "$STATIC" -eq 1 ] ; then
+    echo "LDFLAGS += -m32 -lasound -lpthread -L.. ../libstdc++.a /usr/lib/libshout.a /usr/lib/libvorbisenc.a /usr/lib/libvorbis.a /usr/lib/libogg.a /usr/lib/libmp3lame.a /usr/lib/libportaudio.a /usr/lib/libjack.a /usr/lib/librt.a" >&4
+    echo "CXXFLAGS += -m32" >&4
+    echo "CFLAGS += -m32" >&4
+fi
 [ "$STATIC" -eq 0 ] && echo "LDFLAGS += -lmp3lame" >&4
 
 
