@@ -1,6 +1,6 @@
 // shoutcast functions for butt
 //
-// Copyright 2007-2008 by Daniel Noethen.
+// Copyright 2007-2018 by Daniel Noethen.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,11 +16,17 @@
 #ifndef SHOUTCAST_H 
 #define SHOUTCAST_H
 
+enum {
+    SC_OK = 0,
+    SC_RETRY = 1,
+    SC_ABORT = 2,
+    SC_ASK = 3,
+};
 
-int sc_update_song();
-int sc_connect();
+int sc_update_song(char *song_name);
+int sc_connect(void);
 int sc_send(char *buf, int buf_len);
-void sc_disconnect();
+void sc_disconnect(void);
 
 #endif
 

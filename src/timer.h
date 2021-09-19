@@ -1,6 +1,6 @@
 // timer related functions
 //
-// Copyright 2007-2008 by Daniel Noethen.
+// Copyright 2007-2018 by Daniel Noethen.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -23,12 +23,14 @@ struct sec_timer
     time_t start_time;
     time_t new_time;
     int duration;
+    bool is_running = false;
 };
 
 
 void timer_init(sec_timer *t, int duration);
 int timer_is_elapsed(sec_timer *t);
 char *timer_get_time_str(sec_timer *t);
+void timer_reset(sec_timer *t);
 
 #endif
 

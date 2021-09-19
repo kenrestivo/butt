@@ -1,6 +1,6 @@
 // audio functions for butt
 //
-// Copyright 2007-2008 by Daniel Noethen.
+// Copyright 2007-2018 by Daniel Noethen.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -23,35 +23,52 @@
 
 #include "lame_encode.h"
 
+#define SND_MAX_DEVICES (256)
+
 typedef struct
 {
     char *name;
     int dev_id;
     int sr_list[10]; //8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000, 0
-
+    int num_of_sr;
+    int num_of_channels;
+    int left_ch;
+    int right_ch;
 }snd_dev_t;
+
+enum {
+    SND_STREAM = 0,
+    SND_REC = 1
+};
+
 
 extern bool try_to_connect;
 extern bool pa_new_frames;
 extern bool reconnect;
+extern bool next_file;
+extern bool silence_detected;
+extern bool signal_detected;
+
+extern FILE *next_fd;
 
 int *snd_get_samplerates(int *sr_count);
+void snd_free_device_list(void);
 snd_dev_t **snd_get_devices(int *dev_count);
 void *snd_rec_thread(void *data);
 void *snd_stream_thread(void *data);
 
-void snd_loop();
-void snd_close();
-void snd_update_vu();
-void snd_start_stream();
-void snd_stop_stream();
-void snd_start_rec();
-void snd_stop_rec();
-void snd_reinit();
+void snd_close(void);
+void snd_update_vu(void);
+void snd_start_stream(void);
+void snd_stop_stream(void);
+void snd_start_rec(void);
+void snd_stop_rec(void);
+void snd_reinit(void);
 
-int snd_init();
-int snd_open_stream();
-int snd_write_buf();
+int snd_init(void);
+int snd_open_stream(void);
+int snd_write_buf(void);
+void snd_reset_samplerate_conv(int rec_or_stream);
 
 int snd_callback(const void *input,
                  void *output,
@@ -59,5 +76,9 @@ int snd_callback(const void *input,
                  const PaStreamCallbackTimeInfo* timeInfo,
                  PaStreamCallbackFlags statusFlags,
                  void *userData);
+
+void snd_reset_compressor();
+int snd_get_dev_num_by_name(char *name);
+
 #endif
 

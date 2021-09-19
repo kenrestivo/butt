@@ -1,6 +1,6 @@
 // timer related functions
 //
-// Copyright 2007-2008 by Daniel Noethen.
+// Copyright 2007-2018 by Daniel Noethen.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -18,13 +18,13 @@
 
 #include "timer.h"
 
-char time_str[10];
 
 void timer_init(sec_timer *t, int duration)
 {
     t->start_time = time(NULL);
     t->new_time = t->start_time;
     t->duration = duration;
+    t->is_running = true;
 }
 
 int timer_is_elapsed(sec_timer *t)
@@ -41,6 +41,7 @@ int timer_is_elapsed(sec_timer *t)
 
 char *timer_get_time_str(sec_timer *t)
 {
+    static char time_str[64];
     int hour = 0, min = 0, sec = 0;
     time_t cur_time = time(NULL);
 
@@ -51,8 +52,15 @@ char *timer_get_time_str(sec_timer *t)
     min %= 60;
     sec %= 60;
 
-    snprintf(time_str, 10, "%02d:%02d:%02d", hour, min, sec);
+    snprintf(time_str, sizeof(time_str), "%02d:%02d:%02d", hour, min, sec);
 
     return time_str;
+}
+
+void timer_reset(sec_timer *t)
+{
+    t->is_running = false;
+    t->start_time = time(NULL);
+    t->new_time = t->start_time;
 }
 

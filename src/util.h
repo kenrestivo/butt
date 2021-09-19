@@ -1,6 +1,6 @@
 // string manipulation functions for butt
 //
-// Copyright 2007-2008 by Daniel Noethen.
+// Copyright 2007-2018 by Daniel Noethen.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -18,5 +18,8 @@
 
 char *util_base64_enc(char *data);
 char *util_get_file_extension(char *filename);
+float util_factor_to_db(float factor);
+float util_db_to_factor(float dB);
+void set_max_thread_priority(void);
 
 #endif

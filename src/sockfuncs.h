@@ -1,6 +1,6 @@
 // socket functions for butt
 //
-// Copyright 2007-2008 by Daniel Noethen.
+// Copyright 2007-2018 by Daniel Noethen.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -29,29 +29,32 @@ enum {
     SOCK_INVALID = -4,
     SOCK_NO_MODE = -5,
     SOCK_ERR_SET_SBUF = -6,
-    SOCK_ERR_SET_RBUF = -7
+    SOCK_ERR_SET_RBUF = -7,
+    SOCK_ERR_BIND = -8,
+    SOCK_ERR_LISTEN = -9
 };
 
 enum {
-    CONN_TIMEOUT = 500,
+    CONN_TIMEOUT = 1000,
     SEND_TIMEOUT = 3000,
     RECV_TIMEOUT = 1000
 };
 
 
-int sock_connect(char *addr, short port, int msec);
-int sock_setbufsize(int *s, int send_size, int recv_size);
-int sock_isdisconnected(int *s);
-int sock_send(int *s, char *buf, int len, int msec);
-int sock_recv(int *s, char *buf, int len, int msec);
-int sock_select(int *s, int msec, int mode);
-int sock_nonblock(int *s);
-int sock_block(int *s);
-int sock_isvalid(int *s);
-void sock_close(int *s);
-void sock_fdinit(int *s);
-void sock_fdclr(int *s);
-void sock_fdzero();
+int sock_connect(const char *addr, unsigned int port, int timout_ms);
+int sock_listen(void);
+int sock_setbufsize(int s, int send_size, int recv_size);
+int sock_isdisconnected(int s);
+int sock_send(int s, const char *buf, int len, int timout_ms);
+int sock_recv(int s, char *buf, int len, int timout_ms);
+int sock_select(int s, int timout_ms, int mode);
+int sock_nonblock(int s);
+int sock_block(int s);
+int sock_isvalid(int s);
+void sock_close(int s);
+void sock_fdinit(int s);
+void sock_fdclr(int s);
+void sock_fdzero(void);
 
 
 #endif

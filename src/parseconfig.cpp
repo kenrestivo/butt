@@ -8,7 +8,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include <string.h>
+#include <FL/fl_utf8.h> // for fl_fopen(...)
+
 #include "parseconfig.h"
 
 struct CFG_ENTRIES {
@@ -34,7 +37,7 @@ enum {
 };
 
 static struct CFG_SECTIONS*
-cfg_init_sections()
+cfg_init_sections(void)
 {
     struct CFG_SECTIONS *c;
     c = (CFG_SECTIONS*) malloc(sizeof(struct CFG_SECTIONS));
@@ -47,7 +50,7 @@ cfg_init_sections()
 }
 
 static struct CFG_ENTRIES*
-cfg_init_entries()
+cfg_init_entries(void)
 {
     struct CFG_ENTRIES *e;
     e = (CFG_ENTRIES*) malloc(sizeof(struct CFG_ENTRIES));
@@ -111,24 +114,24 @@ int
 cfg_parse_file(const char *filename)
 {
     struct CFG_ENTRIES *e = NULL;
-    char line[256],tag[64],value[192];
+    char line[1024],tag[64],value[1021];
     FILE *fp;
     int nr;
 
     if (NULL == c)
         c = cfg_init_sections();
-    if (NULL == (fp = fopen(filename,"r")))
+    if (NULL == (fp = fl_fopen(filename,"rb")))
         return -1;
 
     nr = 0;
-    while (NULL != fgets(line,255,fp)) {
+    while (NULL != fgets(line,1023,fp)) {
         nr++;
         if (line[0] == '\n' || line[0] == '#' || line[0] == '%' || line[0] ==';')
             continue;
-        if (1 == sscanf(line,"[%99[^]]]",value)) {
+        if (1 == sscanf(line,"[%1020[^]]]",value)) {
             /* section */
             e = cfg_find_section(c,value);
-        } else if (2 == sscanf(line," %63[^= ] = %191[^\n]",tag,value)) {
+        } else if (2 == sscanf(line," %63[^= ] = %1020[^\n]",tag,value)) {
             /* foo = bar */
             if (NULL == e) {
                 fprintf(stderr,"%s:%d: error: no section\n",filename,nr);
@@ -147,7 +150,7 @@ cfg_parse_file(const char *filename)
 /* ------------------------------------------------------------------------ */
 
 char**
-cfg_list_sections()
+cfg_list_sections(void)
 {
     return c->sec_names;
 }
@@ -199,7 +202,7 @@ cfg_get_float(const char *sec, const char *ent)
 
     val = cfg_get_str(sec,ent);
     if (NULL == val)
-        return -1;
+        return NAN;
     return atof(val);
 }
 

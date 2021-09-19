@@ -1,6 +1,6 @@
 //utility functions for butt
 //
-// Copyright 2007-2008 by Daniel Noethen.
+// Copyright 2007-2018 by Daniel Noethen.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -13,10 +13,37 @@
 // GNU General Public License for more details.
 //
 
+#include <stdio.h>
 #include <string.h>
+#include <math.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 #include "util.h"
+
+
+void set_max_thread_priority(void)
+{
+    int policy, max_prio;
+    pthread_attr_t attr;
+    struct sched_param param;
+    pthread_attr_init(&attr);
+    pthread_getschedparam(pthread_self(), &policy, &param);
+    policy = SCHED_RR;
+    max_prio = sched_get_priority_max(policy);
+    
+    //printf("max_prio: %d\n", max_prio);
+    
+    if (max_prio != -1)
+    {
+        param.sched_priority = max_prio;
+        pthread_setschedparam(pthread_self(), policy, &param);
+    }
+    else
+    {
+        printf("could not set priority\n");
+    }
+}
 
 
 char *util_base64_enc(char *data)
@@ -67,7 +94,7 @@ char *util_base64_enc(char *data)
 
 char *util_get_file_extension(char *filename)
 {
-    char *ext;
+    static char *ext;
     //find the last occurence of '.' in the filename
     ext = strrchr(filename, (int)'.');
 
@@ -77,4 +104,14 @@ char *util_get_file_extension(char *filename)
         return NULL;
     else
         return ++ext;
+}
+
+float util_factor_to_db(float factor)
+{
+    return 20 * log10(factor);
+}
+
+float util_db_to_factor(float dB)
+{
+    return pow(10, dB/20);
 }

@@ -1,6 +1,6 @@
 // vorbis encoding functions for butt
 //
-// Copyright 2007-2008 by Daniel Noethen.
+// Copyright 2007-2018 by Daniel Noethen.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include "config.h"
+#include "cfg.h"
 #include "vorbis_encode.h"
 
 int vorbis_enc_init(vorbis_enc *vorbis)
@@ -36,7 +38,8 @@ int vorbis_enc_init(vorbis_enc *vorbis)
         return ret;
 
     vorbis_comment_init(&(vorbis->vc));
-    vorbis_comment_add_tag(&(vorbis->vc), "ENCODER", VERSION);
+    vorbis_comment_add_tag(&(vorbis->vc), "ENCODER", PACKAGE_STRING);
+//    vorbis_comment_add_tag(&(vorbis->vc), "TITLE", "Hello Song");
 
     vorbis_analysis_init(&(vorbis->vd), &(vorbis->vi));
     vorbis_block_init(&(vorbis->vd), &(vorbis->vb));
@@ -57,6 +60,7 @@ void vorbis_enc_write_header(vorbis_enc *vorbis)
 
     vorbis_analysis_headerout(&(vorbis->vd), &(vorbis->vc),
             &header, &header_comm, &header_code);
+
     ogg_stream_packetin(&(vorbis->os), &header);
     ogg_stream_packetin(&(vorbis->os), &header_comm);
     ogg_stream_packetin(&(vorbis->os), &header_code);
@@ -64,8 +68,12 @@ void vorbis_enc_write_header(vorbis_enc *vorbis)
 
 int vorbis_enc_reinit(vorbis_enc *vorbis)
 {
-     vorbis_enc_close(vorbis);
-     return vorbis_enc_init(vorbis);
+    if(vorbis != NULL)
+    {
+        vorbis_enc_close(vorbis);
+        return vorbis_enc_init(vorbis);
+    }
+    return 1;
 }
 
 int vorbis_enc_encode(vorbis_enc *vorbis, short *pcm_buf, char *enc_buf, int size)
@@ -78,33 +86,33 @@ int vorbis_enc_encode(vorbis_enc *vorbis, short *pcm_buf, char *enc_buf, int siz
     if(size == 0)
         return 0;
 
-
     /* This ensures the actual
      * audio data will start on a new page, as per spec
      */
-    while(!eos)
-    {
-        result = ogg_stream_flush(&(vorbis->os), &(vorbis->og));
-        if(result == 0)
-            break;
-        memcpy(enc_buf+w, vorbis->og.header, vorbis->og.header_len);
-        w += vorbis->og.header_len;
-        memcpy(enc_buf+w, vorbis->og.body, vorbis->og.body_len);
-        w += vorbis->og.body_len;
-    }
+    result = ogg_stream_flush(&(vorbis->os), &(vorbis->og));
+    memcpy(enc_buf+w, vorbis->og.header, vorbis->og.header_len);
+    w += vorbis->og.header_len;
+    memcpy(enc_buf+w, vorbis->og.body, vorbis->og.body_len);
+    w += vorbis->og.body_len;
 
     vorbis_buf = vorbis_analysis_buffer(&(vorbis->vd), size);
 
     //deinterlace audio data and convert it from short to float
-    if(vorbis->channel == 1)
-         for(i = 0 ; i < size ; i++)
-             vorbis_buf[0][i] = pcm_buf[i]/32768.f;
-    else
-        for(i = 0 ; i < size; i++)
+    if(vorbis->channel == 2) // stereo
+    {
+        for(i = 0; i < size; i++)
         {
             vorbis_buf[0][i] = pcm_buf[i*2]/32768.f;
             vorbis_buf[1][i] = pcm_buf[i*2+1]/32768.f;
         }
+    }
+    else // mono
+    {
+         for(i = 0; i < size; i++)
+         {
+             vorbis_buf[0][i] = pcm_buf[i]/32768.f; 
+         }
+    }
 
     vorbis_analysis_wrote(&(vorbis->vd), size);
 
@@ -118,18 +126,19 @@ int vorbis_enc_encode(vorbis_enc *vorbis, short *pcm_buf, char *enc_buf, int siz
             /* weld the packet into the bitstream */
             ogg_stream_packetin(&(vorbis->os),&(vorbis->op));
 
+
             /* write out pages (if any) */
             while(!eos)
             {
                 result = ogg_stream_pageout(&(vorbis->os), &(vorbis->og));
                 if(result == 0) 
                     break;
+
                 memcpy(enc_buf+w, vorbis->og.header, vorbis->og.header_len);
                 w += vorbis->og.header_len;
                 memcpy(enc_buf+w, vorbis->og.body, vorbis->og.body_len);
                 w += vorbis->og.body_len;
-                if(ogg_page_eos(&(vorbis->og)))
-                    eos=1;
+                eos = ogg_page_eos(&(vorbis->og));
             }
         }
     }

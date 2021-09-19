@@ -1,6 +1,6 @@
 // lame encoding functions for butt
 //
-// Copyright 2007-2008 by Daniel Noethen.
+// Copyright 2007-2018 by Daniel Noethen.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,10 +16,11 @@
 #include <stdlib.h>
 #include <lame/lame.h>
 
+#include "gettext.h"
+
 #include "lame_encode.h"
 
-#include "config.h"
-
+#include "fl_funcs.h"
 
 int lame_enc_init(lame_enc *lame)
 {
@@ -29,15 +30,14 @@ int lame_enc_init(lame_enc *lame)
     lame->gfp = lame_init();
 
     lame_set_num_channels(lame->gfp, lame->channel);
-    lame_set_in_samplerate(lame->gfp, lame->samplerate_in);
-    lame_set_out_samplerate(lame->gfp, lame->samplerate_out);
+    lame_set_in_samplerate(lame->gfp, lame->samplerate);
+    lame_set_out_samplerate(lame->gfp, lame->samplerate);
     lame_set_brate(lame->gfp, lame->bitrate);
-
+    
     if((rc = lame_init_params(lame->gfp)) < 0)
     {
-        printf("bitrate: %d\n", lame->bitrate);
         snprintf(info_buf, sizeof(info_buf),
-                "unable to init lame params %d", rc);
+                _("unable to init lame params %d"), rc);
 
         print_info(info_buf, 1);
         return 1;
@@ -49,8 +49,12 @@ int lame_enc_init(lame_enc *lame)
 
 int lame_enc_reinit(lame_enc *lame)
 {
-    lame_enc_close(lame);
-    return lame_enc_init(lame);
+    if(lame != NULL)
+    {
+        lame_enc_close(lame);
+        return lame_enc_init(lame);
+    }
+    return 1;
 }
 
 void lame_enc_close(lame_enc *lame)
@@ -58,7 +62,9 @@ void lame_enc_close(lame_enc *lame)
     while(lame->state == LAME_BUSY)
        ;
 
-    lame_close(lame->gfp);
+    if (lame->gfp != NULL)
+        lame_close(lame->gfp);
+    
     lame->gfp = NULL;
 }
 
@@ -71,10 +77,12 @@ int lame_enc_encode(lame_enc *lame, short *pcm_buf, char *enc_buf, int samples, 
 
     lame->state = LAME_BUSY;
 
-    if(lame->channel == 2)
+
+    if(lame->channel == 2) // stereo
         rc = lame_encode_buffer_interleaved(lame->gfp, pcm_buf, samples, (unsigned char*)enc_buf, size);
-    else
+    else // mono
         rc = lame_encode_buffer(lame->gfp, pcm_buf, pcm_buf, samples, (unsigned char*)enc_buf, size);
+
 
     lame->state = LAME_READY;
 

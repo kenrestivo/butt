@@ -50,7 +50,6 @@ class Fl_ILM216 : public Fl_Widget
 
   bool         backlight_;            // Backlight enabled?
   uchar        buttons_;            // Current button state
-  uchar        chars_[32];            // Characters on-screen
   int          cursor_pos_;            // Cursor position
   bool         cursor_state_;            // Cursor state (blinking)
   int          cursor_type_;            // Cursor type
@@ -65,14 +64,17 @@ class Fl_ILM216 : public Fl_Widget
   uchar        odata_[224][96];        // Outline data (20x32)
   uchar        prev_char_;            // Previous character
 
-  void        draw();
+  void        draw(void);
   void        load_char(uchar ch, const uchar *data);
   void        load_font(void);
 
   public:
 
   Fl_ILM216(int X, int Y, int W, int H, const char *L = 0);
-  ~Fl_ILM216();
+  ~Fl_ILM216(void);
+    
+   uchar        chars_[32];            // Characters on-screen
+
 
   virtual int handle(int);
 
